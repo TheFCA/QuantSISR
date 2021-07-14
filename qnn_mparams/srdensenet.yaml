@@ -2,7 +2,7 @@
 
 # Training parameters
 lr : 1.0e-4 #1.0e-4
-batch_size: 128
+batch_size: 64
 
 # Model parameters
 RESIDUAL: False
@@ -15,5 +15,5 @@ ENABLE_BIAS       : False # This is set to False, since 2021 FINN version does n
 ENABLE_BIAS_QUANT : False # This is set to False, since 2021 FINN version does not support it correctly
 
 # Specific dataset info
-crop_size: 32 # 32
-stride: 21 # 21
+crop_size: 100 # 32
+stride: 100 # 21
