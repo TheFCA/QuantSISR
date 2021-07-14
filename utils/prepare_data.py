@@ -35,7 +35,7 @@ def read_training_data(file):
 
 class CreateDataset():
     def __init__(self):
-        with open(r'DatasetConfig.yaml') as file:
+        with open(r'utils/DatasetConfig.yaml') as file:
             params = yaml.load(file, Loader=yaml.FullLoader)
         params      = {**params}
         # From yaml config file
