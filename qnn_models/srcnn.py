@@ -27,7 +27,7 @@ class srcnn(nn.Module):
         self.nbk = nbk
         self.nba = nba
         self.name = 'srcnn'
-        
+
         # Yaml model configuration file
         with open('qnn_mparams/'+self.name+'.yaml',mode='r') as file:
             params = yaml.load(file, Loader=yaml.FullLoader)
@@ -44,7 +44,7 @@ class srcnn(nn.Module):
         self.KS = params ['KS']
         
         # Quantization parameters
-        self.ENABLE_BIAS = params['ENABLE_BIAS']
+        self.ENABLE_BIAS = kwargs['bias'] if (kwargs['bias'] is not None) else params['ENABLE_BIAS']
         self.ENABLE_BIAS_QUANT = params['ENABLE_BIAS_QUANT']
         
         # Dataset parameters

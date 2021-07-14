@@ -34,8 +34,8 @@ class Trainer():
         self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(
             self.optimizer,
             mode='min',
-            factor=0.5,
-            patience=10, #antes 20
+            factor=self.params['LRSchedFac'],
+            patience=self.params['LRSchedPat'], #antes 20
             threshold= 0.001, # in rel means 0.1%
             threshold_mode = "rel",
             cooldown=0,
@@ -234,7 +234,7 @@ class Trainer():
     def train_model(self):
 
         qnnprinter = Printer(self.params)
-        early_stopping = EarlyStopping()
+        early_stopping = EarlyStopping(patience=self.params['EarlyStopE'], min_delta=self.params['EarlyDelta'])
         for epoch in range(self.init_epoch, self.epochs):
             print(f"Epoch {epoch + 1} of {self.epochs}")
             train_epoch_loss, train_epoch_psnr, train_epoch_ssim = self.train_epoch()

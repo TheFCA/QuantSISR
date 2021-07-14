@@ -4,6 +4,7 @@ epochs: 100
 # batch_size: 100
 
 seed: 0 
+# Location where the dataset files are
 data_path: /mnt/0eafdae2-1d8c-43b3-aa1a-2eac4df4bfc5/data/qfastMRI/
 output_path : outputs/
 workers: 1 # number of workers cause not determinism, because multithreading
@@ -13,12 +14,9 @@ mon_img: /mnt/0eafdae2-1d8c-43b3-aa1a-2eac4df4bfc5/data/qfastMRI/Val/HR_file1000
 padding: same
 method: bicubic
 
-# # To be moved to single model params
-# crop_size: 40
-# stride: 40
-
 # EarlyStop Parameters
-EarlyStopE: 30 # Number of consecutive epochs with no improvement (<0.1%) before stopping
+EarlyStopE: 15 # Number of consecutive epochs with no improvement (<0.1%) before stopping
+EarlyDelta: 0.001
 # LR Scheduler
 LRSchedPat: 5 #LR scheduler patience before reducing the LR
 LRSchedFac: 0.5 # Applied Reduction factor

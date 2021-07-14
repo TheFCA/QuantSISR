@@ -67,11 +67,11 @@ parser.add_argument(
     type=str,
     default='',
     help='Additional tag')   
-# parser.add_argument(
-#     '--bias',
-#     type=str,
-#     default=None,
-#     help='Activate bias')   
+parser.add_argument(
+    '--bias',
+    type=str,
+    default=None,
+    help='Activate bias')   
 parser.add_argument(
     '--load',
     type=str,
@@ -97,6 +97,7 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 scale= int(flags.scale)
 nbk=flags.nbk
 nba=flags.nba
+bias = str2bool(flags.bias)
 
 # nbk = 7
 # nba = 7
@@ -111,7 +112,7 @@ else:
 
 # Create model and move to device : {gpu or cpu}
 modelClass = importModelClass('qnn_models.'+flags.model)
-model = modelClass(nbk=nbk,nba=nba)
+model = modelClass(nbk=nbk,nba=nba,bias=bias)
 
 model.to(device)
 
