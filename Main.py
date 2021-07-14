@@ -1,6 +1,7 @@
 #########
 # Fernando Carrió Argos
 # University of Málaga
+# fernando.carrio@uma.es
 #########
 
 from six import viewitems

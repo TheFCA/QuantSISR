@@ -7,10 +7,10 @@ import torch
 import skvideo.measure
 # import .svmutil
 # import .svm
-from .svm import gen_svm_nodearray
-from .svm import *
-from .svmutil import *
-from .svmutil import svm_load_model
+# from .svm import gen_svm_nodearray
+# from .svm import *
+# from .svmutil import *
+# from .svmutil import svm_load_model
 
 def mssim(img1, img2):
 	return float(skvideo.measure.msssim(img1, img2,method="product")[0])
@@ -19,34 +19,34 @@ def mssim(img1, img2):
 def niqe(img):
 	return float(skvideo.measure.niqe(img)[0])
 
-# to be done in matlab
-def brisque(img):
-	# https://blog.csdn.net/qq_35860352/article/details/84037501?utm_medium=distribute.pc_aggpage_search_result.none-task-blog-2~aggregatepage~first_rank_v2~rank_aggregation-5-84037501.pc_agg_rank_aggregation&utm_term=msssim&spm=1000.2123.3001.4430	
-	# https://learnopencv.com/image-quality-assessment-brisque/
-	# We still need an SVM to estimate the brisque
-	# load the model from allmodel file
-	x = skvideo.measure.brisque_features(img)
-	x = x[0,0:].tolist()
-	model = svm_load_model("qnn_utils/allmodel")
-	# create svm node array from features list
-	x, idx = gen_svm_nodearray(x, isKernel=(model.param.kernel_type == PRECOMPUTED))
-	nr_classifier = 1 # fixed for svm type as EPSILON_SVR (regression)
-	prob_estimates = (c_double * nr_classifier)()
-	# predict quality score of an image using libsvm module
-	qualityscore = libsvm.svm_predict_probability(model, x, prob_estimates)
-	return qualityscore
-# from .msssim import *
-# from .ssim import *
-# from .strred import *
-# from .psnr import *
-# from .mse import *
-# from .mae import *
-# from .scene import *
-# from .brisque import *
-# from .videobliinds import *
-# from .viideo import *
-# from .niqe import *
-# from .Li3DDCT import *
+# # to be done in matlab
+# def brisque(img):
+# 	# https://blog.csdn.net/qq_35860352/article/details/84037501?utm_medium=distribute.pc_aggpage_search_result.none-task-blog-2~aggregatepage~first_rank_v2~rank_aggregation-5-84037501.pc_agg_rank_aggregation&utm_term=msssim&spm=1000.2123.3001.4430	
+# 	# https://learnopencv.com/image-quality-assessment-brisque/
+# 	# We still need an SVM to estimate the brisque
+# 	# load the model from allmodel file
+# 	x = skvideo.measure.brisque_features(img)
+# 	x = x[0,0:].tolist()
+# 	model = svm_load_model("qnn_utils/allmodel")
+# 	# create svm node array from features list
+# 	x, idx = gen_svm_nodearray(x, isKernel=(model.param.kernel_type == PRECOMPUTED))
+# 	nr_classifier = 1 # fixed for svm type as EPSILON_SVR (regression)
+# 	prob_estimates = (c_double * nr_classifier)()
+# 	# predict quality score of an image using libsvm module
+# 	qualityscore = libsvm.svm_predict_probability(model, x, prob_estimates)
+# 	return qualityscore
+# # from .msssim import *
+# # from .ssim import *
+# # from .strred import *
+# # from .psnr import *
+# # from .mse import *
+# # from .mae import *
+# # from .scene import *
+# # from .brisque import *
+# # from .videobliinds import *
+# # from .viideo import *
+# # from .niqe import *
+# # from .Li3DDCT import *
 
 
 def ssimFunc(img1, img2):
