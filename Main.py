@@ -1,4 +1,6 @@
 #########
+# Fernando Carrió Argos
+# University of Málaga
 #########
 
 from six import viewitems
