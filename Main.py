@@ -160,6 +160,8 @@ if (load):
         print ('loading file:', load)
         config.IGNORE_MISSING_KEYS = True
         trainer.load_pretrain(load_file)
+    else:
+        print ('No file was found. Training from scratch.')
 
 # Train the network!
 start = time.time()

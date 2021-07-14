@@ -53,14 +53,20 @@ def str2bool(v):
     return
     
 def sel_load_file(nbk,scale, name):
-    if nbk == 8:
+    if nbk == 8 or nbk == None:
         load_file = 'outputs/scale'+str(scale)+'/'+name+'_WNoneANone/'+name+'_WNoneANone_Best.pth'
         if (os.path.isfile(load_file)):
+            print ('File: ',load_file, ' found and loaded.')
             return load_file
+        else:
+            print ('File: ',load_file, ' does not exist.')
     else:
         max_nbk = np.clip(nbk+3,nbk,8)
         for W in range(nbk+1,max_nbk+1):
             for A in range(W,max_nbk+1):
                 load_file = 'outputs/scale'+str(scale)+'/'+name+'_W'+str(W)+'A'+str(A)+'/'+name+'_W'+str(W)+'A'+str(A)+'_Best.pth'
                 if (os.path.isfile(load_file)):
+                    print ('File: ',load_file, ' found and loaded.')                    
                     return load_file
+                else:
+                    print ('File: ',load_file, ' does not exist.')

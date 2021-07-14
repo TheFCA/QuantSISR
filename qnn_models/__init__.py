@@ -6,6 +6,6 @@ __all__= ['srcnn','drrn','dncnn','srdensenet'] # DnCNN,
 
 from .srcnn import *
 from .drrn import *
-from .vdsr import *
+# from .vdsr import *
 from .dncnn import *
 from .srdensenet import *
