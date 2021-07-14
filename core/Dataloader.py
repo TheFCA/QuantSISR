@@ -2,7 +2,7 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 import h5py
 import os
-from prepare_data import *
+from utils.prepare_data import *
 class SRDataset(Dataset):
     def __init__(self, image_data, labels):
         self.image_data = image_data
