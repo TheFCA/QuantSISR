@@ -1,0 +1,19 @@
+# This is the configuration file for training
+
+# Training parameters
+lr : 1.0e-4 #1.0e-4
+batch_size: 128
+
+# Model parameters
+RESIDUAL: False
+growth_rate: 16
+num_blocks: 8
+num_layers: 8
+
+# Quantization parameters
+ENABLE_BIAS       : False # This is set to False, since 2021 FINN version does not support it correctly
+ENABLE_BIAS_QUANT : False # This is set to False, since 2021 FINN version does not support it correctly
+
+# Specific dataset info
+crop_size: 32 # 32
+stride: 21 # 21
