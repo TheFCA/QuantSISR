@@ -19,4 +19,6 @@ EarlyStopE: 15 # Number of consecutive epochs with no improvement (<0.1%) before
 EarlyDelta: 0.001
 # LR Scheduler
 LRSchedPat: 5 #LR scheduler patience before reducing the LR
-LRSchedFac: 0.5 # Applied Reduction factor
+LRSchedFac: 0.1 # Applied Reduction factor
+LRSchedFacFunc: sqrt # sqrt,cbrt, power2 or power3
+Verbose: False # stop printing tqdm

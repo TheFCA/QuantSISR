@@ -31,12 +31,28 @@ class Trainer():
         self.optimizer = optim.Adam(model.parameters(), lr=self.lr, amsgrad=True,weight_decay=0)
         self.criterion = torch.nn.MSELoss(reduction='mean') #sum or mean
 
+        if 'LRSchedFacFunc' in self.params:
+            if self.params['LRSchedFacFunc']=='sqrt':
+                self.factor = np.sqrt(self.params['LRSchedFac'])
+            elif self.params['LRSchedFacFunc']=='cbrt':
+                self.factor = np.cbrt(self.params['LRSchedFac'])
+            elif self.params['LRSchedFacFunc']=='power2':
+                self.factor = np.power(self.params['LRSchedFac'],2)
+            elif self.params['LRSchedFacFunc']=='power3':
+                self.factor = np.power(self.params['LRSchedFac'],3)
+            else:
+                print ('LRSchedFacFunc not recognized. No function will be applied to Schedulder Factor')
+                self.factor = self.params['LRSchedFac']
+
+        else:
+            self.factor = self.params['LRSchedFac']
+
         self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(
             self.optimizer,
             mode='min',
-            factor=self.params['LRSchedFac'],
+            factor=self.factor,
             patience=self.params['LRSchedPat'], #antes 20
-            threshold= 0.001, # in rel means 0.1%
+            threshold= 1e-4, # in rel means 0.1%
             threshold_mode = "rel",
             cooldown=0,
             min_lr=1e-6,
@@ -116,7 +132,7 @@ class Trainer():
         running_ssim = 0.0
         max_val = 1- 2**-8
         nitems = int(len(self.vdataset.dataset)/self.vdataset.batch_size)
-        tk0 = tqdm(enumerate(self.tdataset), total=int(len(self.tdataset.dataset)/self.tdataset.batch_size),unit=" Images")
+        tk0 = tqdm(enumerate(self.tdataset), total=int(len(self.tdataset.dataset)/self.tdataset.batch_size),unit=" Images", disable=self.params['Verbose'])
         counter = 0
         max_val = 1 - 2**-8
         for _, data in tk0:
@@ -192,7 +208,7 @@ class Trainer():
         running_ssim = 0.0
         nitems = int(len(self.vdataset.dataset)/self.vdataset.batch_size)
         with torch.no_grad():
-            tk0 = tqdm(enumerate(self.vdataset), total=int(len(self.vdataset.dataset)/self.vdataset.batch_size))
+            tk0 = tqdm(enumerate(self.vdataset), total=int(len(self.vdataset.dataset)/self.vdataset.batch_size),disable=self.params['Verbose'])
             counter = 0
             for bi, data in tk0:
                 image_data = data[0].to(self.device)

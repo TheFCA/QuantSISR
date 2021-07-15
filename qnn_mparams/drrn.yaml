@@ -8,7 +8,7 @@ batch_size: 32
 RESIDUAL: True
 
 # Quantization parameters
-ENABLE_BIAS       : True # This is set to False, since 2021 FINN version does not support it correctly
+ENABLE_BIAS       : False # This is set to False, since 2021 FINN version does not support it correctly
 ENABLE_BIAS_QUANT : False # This is set to False, since 2021 FINN version does not support it correctly
 
 # Specific dataset info

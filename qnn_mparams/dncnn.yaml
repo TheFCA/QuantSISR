@@ -2,7 +2,7 @@
 
 # Training parameters
 lr : 1.0e-4 #1.0e-4
-batch_size: 128
+batch_size: 64
 
 # Model parameters
 RESIDUAL: True
@@ -10,7 +10,7 @@ nlayers: 17
 features: 64
 GNoise: True
 # Quantization parameters
-ENABLE_BIAS       : True # This is set to False, since 2021 FINN version does not support it correctly
+ENABLE_BIAS       : False # This is set to False, since 2021 FINN version does not support it correctly
 ENABLE_BIAS_QUANT : False # This is set to False, since 2021 FINN version does not support it correctly
 
 # Specific dataset info

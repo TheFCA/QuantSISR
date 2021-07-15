@@ -168,7 +168,7 @@ class drrn(nn.Module):
         # residual = self.inp_quant(x)
         inputs = self.conv_in(self.relu_in(x))
         out = inputs
-        for _ in range(27):
+        for _ in range(9):
             out = self.conv1(self.relu1(self.bn1(out)))
             out = self.conv2(self.relu2(self.bn2(out)))
             out = torch.add(out, inputs)
