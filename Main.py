@@ -8,8 +8,8 @@ from six import viewitems
 import torch
 from qnn_models import *
 from utils.common import *
-from core.Dataloader import SRDataLoader
-from core.trainer import Trainer
+from qnn_core.Dataloader import SRDataLoader
+from qnn_core.trainer import Trainer
 
 import argparse
 import numpy as np
