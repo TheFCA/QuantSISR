@@ -9,7 +9,7 @@ from tqdm import tqdm
 from qnn_utils.metrics import *
 from qnn_utils.printer import Printer
 from qnn_core.EarlyStop import EarlyStopping
-from qnn_core.inferencer import inferencer
+from qnn_core.inferencer import Inferencer
 import brevitas.nn as qnn
 
 
@@ -60,7 +60,7 @@ class Trainer():
             verbose=True)
 
     def load_checkpoint(self):
-        cpath = self.params['output_path'] + '/' + self.params['name']+'W'+str(self.params['nbk'])+'A'+str(self.params['nba'])       
+        cpath = self.params['output_path'] + '/' + self.params['name']+'_W'+str(self.params['nbk'])+'A'+str(self.params['nba'])       
         checkpoint = torch.load(cpath+"_"+'{:03d}'.format(self.params['checkepoch'])+'.pth')
         self.model.load_state_dict(checkpoint['model_state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
@@ -207,6 +207,7 @@ class Trainer():
         running_psnr = 0.0
         running_ssim = 0.0
         nitems = int(len(self.vdataset.dataset)/self.vdataset.batch_size)
+        max_val = 1 - 2**-8
         with torch.no_grad():
             tk0 = tqdm(enumerate(self.vdataset), total=int(len(self.vdataset.dataset)/self.vdataset.batch_size),disable=self.params['Verbose'])
             counter = 0
@@ -215,7 +216,8 @@ class Trainer():
                 label = data[1].to(self.device)
                 if self.model.residual == True:
                     # https://github.com/SaoYan/DnCNN-PyTorch/blob/master/train.py
-                    outputs = torch.clamp(image_data+self.model(image_data), 0., 1.)
+                    outputs = torch.clamp(image_data+self.model(image_data), 0., max_val)
+                    
                 else:
                     outputs = self.model(image_data)            
                 loss = self.criterion(outputs, label)
@@ -256,7 +258,7 @@ class Trainer():
             train_epoch_loss, train_epoch_psnr, train_epoch_ssim = self.train_epoch()
             val_epoch_loss, val_epoch_psnr,val_epoch_ssim = self.eval_epoch()
             
-            Imodel = inferencer(self.model, self.params)
+            Imodel = Inferencer(self.model, self.params)
             bi_epoch_psnr,out_epoch_psnr = Imodel.monitor()
             # Imodel.visualize_feature_maps()
             print(f"Train PSNR: {train_epoch_psnr:.5f}")

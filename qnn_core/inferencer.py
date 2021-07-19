@@ -6,24 +6,45 @@ import copy
 import numpy as np
 from brevitas.quant_tensor import QuantTensor
 import brevitas.nn as qnn
+from tqdm import tqdm
+from qnn_utils.metrics import *
+from PIL import Image
+from pathlib import Path
 
-class inferencer:
+# import sys
+# np.set_printoptions(threshold=sys.maxsize)
+
+class Inferencer:
     def __init__(self,model,params):
         self.mon_img = params['mon_img']
         self.model = model
         self.device = params['device']
         self.scale = params['scale']
+        self.params = params # for other params
+        self._load()
+    
+    def _load(self):
+        cpath = self.params['output_path'] + '/' + self.params['name']+'_W'+str(self.params['nbk'])+'A'+str(self.params['nba'])       
+        if self.params['checkpoint'] is None:
+            load_file = torch.load(cpath+'_Best.pth')
+        else:
+            load_file = torch.load(cpath+"_"+'{:03d}'.format(self.params['checkepoch'])+'.pth')
+        self.model.load_state_dict(load_file['model_state_dict'])
+
 
     def monitor(self):
         IMG_NAME = self.mon_img #"/mnt/0eafdae2-1d8c-43b3-aa1a-2eac4df4bfc5/data/qfastMRI/Val/HR_file1000033_25_CORPD_FBK.png"
-        INPUT_NAME = "Input.jpg"
-        OUTPUT_NAME = "Output.jpg"
+        INPUT_NAME = "Input.png"
+        OUTPUT_NAME = "Output.png"
         img = cv2.imread(IMG_NAME, cv2.IMREAD_COLOR)
         cv2.imwrite("Original.png", img)
 
+        # img2 = copy.deepcopy(img) #my original
         img = cv2.cvtColor(img, cv2.COLOR_BGR2YCrCb)
         shape = img.shape
-        
+        # equal = img[:,:,0] == img2[:,:,0]
+        # print (equal.all())
+
         Y_img = cv2.resize(img[:, :, 0], (shape[1] // self.scale, shape[0] // self.scale), interpolation=cv2.INTER_CUBIC) #, cv2.INTER_CUBIC
         Y_img = cv2.resize(Y_img, (shape[1], shape[0]), interpolation=cv2.INTER_CUBIC) #, cv2.INTER_CUBIC
 
@@ -50,19 +71,19 @@ class inferencer:
             pre_torch2 = pre_torch.cpu().detach().numpy()
         pre = copy.deepcopy(pre_torch2) #my original
         
-        pre = pre * 255.
+        pre = pre * 256.
         pre[pre[:] > 255] = 255
         pre[pre[:] < 0] = 0
+        pre = np.round(pre)
 
         pre = pre.astype(np.uint8)
         #plt.imshow(pre[0,0,:,:])
         #plt.show()
-
         img = cv2.cvtColor(img, cv2.COLOR_BGR2YCrCb)
-
         img[:, :, 0] = pre[0, 0, :, :]
         img = cv2.cvtColor(img, cv2.COLOR_YCrCb2BGR)
         cv2.imwrite(OUTPUT_NAME, img)
+        import skvideo.measure as sk
 
         # psnr calculation:
         im1 = cv2.imread(IMG_NAME, cv2.IMREAD_COLOR) # ORIGINAL
@@ -74,9 +95,18 @@ class inferencer:
         print ("bicubic:")
         bi_psnr= (cv2.PSNR(im1[:,:, 0], im2[:,:, 0]))
         print(bi_psnr)
+        bi_ssim= (ssim(im1[:,:, 0], im2[:,:, 0]))
+        print(bi_ssim)        
+        bi_ssim= (sk.ssim(im1[:,:, 0], im2[:,:, 0]))
+        print(bi_ssim)        
+
         print ("SR Model:")
         out_psnr= (cv2.PSNR(im1[:,:, 0], im3[:,:, 0]))
         print(out_psnr)
+        out_ssim= (ssim(im1[:,:, 0], im3[:,:, 0]))
+        print(out_ssim)
+        out_ssim= (sk.ssim(im1[:,:, 0], im3[:,:, 0]))
+        print(out_ssim)
         return bi_psnr,out_psnr
 
     def visualize_feature_maps(self):
@@ -122,8 +152,6 @@ class inferencer:
             for i in range(1, len(conv_layers)):
                 rr.append(conv_layers[i](rr[-1]))
             out = rr
-
-
             for num_layer in range(len(out)):
                 plt.figure(figsize=(50, 10))
                 layer_viz = out[num_layer][0, :, :]
@@ -133,7 +161,7 @@ class inferencer:
                         filter_np = filter.cpu().detach().numpy() + img
                     else:
                         filter_np = filter.cpu().detach().numpy()
-                    filter_np = filter_np * 255.
+                    filter_np = filter_np * 256.
                     filter_np[filter_np[:] > 255] = 255
                     filter_np[filter_np[:] < 0] = 0
                     max_size = int(np.floor(np.sqrt(layer_viz.shape[0])))
@@ -150,8 +178,75 @@ class inferencer:
                 plt.pause(5)
                 plt.close()
             ######################
-    def infer(self):
-        pass
-    def infer_onnx(self):
+    def infer(self,tstdataset):
+        self.tstdataset = tstdataset
+        self.model.eval()
+        max_val = 1 - 2**-8
+        test_psnr = []
+        test_ssim = []
+        bi_psnr = []
+        bi_ssim = []
+        name_list = []
+
+        with torch.no_grad():
+            tk0 = tqdm(enumerate(self.tstdataset), total=int(len(self.tstdataset.dataset)/self.tstdataset.batch_size),disable=self.params['Verbose'])
+            counter = 0
+            for _, data in tk0:
+                
+                image_data = data[0].to(self.device)
+                label = data[1].to(self.device)
+                img_name = data[2]
+
+                if self.model.residual == True:
+                    outputs = torch.clamp(image_data+self.model(image_data), 0., max_val)
+                else:
+                    outputs = self.model(image_data)            
+                # calculate batch psnr (once every `batch_size` iterations)
+                if isinstance(outputs, QuantTensor):
+                    test_psnr.append(psnr(label, outputs.tensor))
+                    test_ssim.append(ssim(label, outputs.tensor))
+                else:
+                    test_psnr.append(psnr(label, outputs))
+                    test_ssim.append(ssim(label, outputs))                  
+                # print(running_ssim/(counter))
+                ooutputs = outputs.cpu().detach().numpy()
+
+                bi_psnr.append(psnr(label,image_data))
+                bi_ssim.append(ssim(label,image_data))
+
+                tk0.set_postfix({'psnr': '[{:4f}]'.format(np.mean(test_psnr)),'ssim': '[{:4f}]'.format(np.mean(test_ssim)),
+                'psnr_bi': '[{:4f}]'.format(np.mean(bi_psnr)),'ssim_bi': '[{:4f}]'.format(np.mean(bi_ssim))}) 
+
+                img = outputs.cpu().detach().numpy()
+                img = np.round(img* 256.)
+                img[img[:] > 255] = 255
+                img[img[:] < 0] = 0
+                img = img.astype(np.uint8)
+
+                # img = cv2.cvtColor(img[0,0,:,:], cv2.COLOR_GRAY2RGB)
+
+                name = img_name[0].split("'")[1]
+                name = 'RECO_' + '_'.join(name.split('_')[1:])
+                name_list.append(name)
+                self.save_path = self.params['output_path'] + '/inferred/'
+                Path(self.save_path).mkdir(parents=True, exist_ok=True)
+                im = Image.fromarray(img[0,0,:,:])
+                im.convert('L').save(self.save_path+name,'PNG')                
+
+                imgLR = image_data.cpu().detach().numpy() * 256.
+                imgLR[imgLR[:] > 255] = 255
+                imgLR[imgLR[:] < 0] = 0
+                imgLR = imgLR.astype(np.uint8)
+                
+                name = img_name[0].split("'")[1]
+                name = 'LR'+str(self.scale)+'_' + '_'.join(name.split('_')[1:])
+                imgLR = Image.fromarray(imgLR[0,0,:,:])
+                imgLR.convert('L').save(self.save_path+name,'PNG')                    
+                # cv2.imwrite(self.save_path+name, img)
+
+
+        return test_psnr, test_ssim, bi_psnr, bi_ssim, name_list
+
+    def infer_onnx(self): #TODO
         # https://github.com/Xilinx/finn/blob/master/notebooks/basics/0_how_to_work_with_onnx.ipynb
         pass

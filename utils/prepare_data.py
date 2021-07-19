@@ -8,30 +8,40 @@ import h5py
 import numpy as np
 import yaml
 
-def write_hdf5(data, labels, output_filename):
+def write_hdf5(data, labels, output_filename, names=None):
     """
     This function is used to save image data and its label(s) to hdf5 file.
-    output_file.h5,contain data and label
+    output_file.h5,contain data and label and the corresponding naes if necessary
     """
-
     x = data.astype(np.float32) #float32
     y = labels.astype(np.float32)#float32
-
     with h5py.File(output_filename, 'w') as h:
         h.create_dataset('data', data=x, shape=x.shape)
         h.create_dataset('label', data=y, shape=y.shape)
+        if names is not None:
+            names_array = np.asarray(names).astype(np.string_)
+            h.create_dataset('names', data=names_array, shape=names_array.shape)
         # h.create_dataset()
 
 
-def read_training_data(file):
-    with h5py.File(file, 'r') as hf:
-        data = np.array(hf.get('data'))
-        label = np.array(hf.get('label'))
-        train_data = np.transpose(data, (0, 2, 3, 1))
-        train_label = np.transpose(label, (0, 2, 3, 1))
+# def read_training_data(file):
+#     with h5py.File(file, 'r') as hf:
+#         data = np.array(hf.get('data'))
+#         label = np.array(hf.get('label'))
+#         train_data = np.transpose(data, (0, 2, 3, 1))
+#         train_label = np.transpose(label, (0, 2, 3, 1))
 
-        return train_data, train_label
+#         return train_data, train_label
 
+# def read_test_data(file):
+#     with h5py.File(file, 'r') as hf:
+#         data = np.array(hf.get('data'))
+#         label = np.array(hf.get('label'))
+#         names = np.array(hf.get('names'))
+#         test_data = np.transpose(data, (0, 2, 3, 1))
+#         test_label = np.transpose(label, (0, 2, 3, 1))
+
+#         return test_data, test_label, names
 
 class CreateDataset():
     def __init__(self):
@@ -40,6 +50,7 @@ class CreateDataset():
         params      = {**params}
         # From yaml config file
         self.DATA_PATH   = params['train_path']
+        self.VAL_PATH    = params['val_path']
         self.TEST_PATH   = params['test_path']
         self.H5_PATH     = params['h5f_path']
         self.method      = params['method']
@@ -126,8 +137,8 @@ class CreateDataset():
         label = np.array(label, dtype=float)
         return data, label
 
-    def __prepare_test_data(self):
-        names = os.listdir(self.TEST_PATH)
+    def __prepare_val_data(self):
+        names = os.listdir(self.VAL_PATH)
         names = sorted(names)
         nums = names.__len__()
         Random_Crop = 100
@@ -135,7 +146,7 @@ class CreateDataset():
         label = np.zeros((nums * Random_Crop, 1, self.crop, self.crop), dtype=np.float32)
 
         for i in range(nums):
-            name = self.TEST_PATH + names[i]
+            name = self.VAL_PATH + names[i]
             hr_img = cv2.imread(name, cv2.IMREAD_COLOR)
             shape = hr_img.shape
 
@@ -162,6 +173,29 @@ class CreateDataset():
                 # else:
                 label[i * Random_Crop + j, :, :] = hr_patch
         return data, label
+    def __prepare_test_data(self):
+        names = os.listdir(self.TEST_PATH)
+        names = sorted(names)
+        nums = names.__len__()
+        data    = np.zeros((nums,1, 320, 320), dtype=np.float32)
+        label   = np.zeros((nums,1, 320, 320), dtype=np.float32)
+
+        for i in range(nums):
+            name = self.TEST_PATH + names[i]
+            hr_img = cv2.imread(name, cv2.IMREAD_COLOR)
+            shape = hr_img.shape
+
+            hr_img = cv2.cvtColor(hr_img, cv2.COLOR_BGR2YCrCb)
+            hr_img = hr_img[:, :, 0]
+            
+            # two resize operation to produce training data and labels
+            lr_img = cv2.resize(hr_img, (shape[1] // self.scale, shape[0] // self.scale), interpolation=cv2.INTER_CUBIC) #, interpolation=cv2.INTER_CUBIC
+            lr_img = cv2.resize(lr_img, (shape[1], shape[0]), interpolation=cv2.INTER_CUBIC) #, interpolation=cv2.INTER_CUBIC
+
+            data[i, :, :]   = lr_img.astype(float) / 255.
+            label[i, :, :]  = hr_img.astype(float) / 255.
+        # print (np.asarray(names))
+        return data, label, names
     def __prepare_calib_data(self):
         names = os.listdir(self.DATA_PATH)
         names = sorted(names)
@@ -185,13 +219,16 @@ class CreateDataset():
             data[i, :, :]   = lr_img
             label[i, :, :]  = hr_img
         return data, label
+    
     def writeDataset(self):
         data, label = self.__prepare_train_data()
-        write_hdf5(data, label, self.H5_PATH+"/crop_train_"+str(self.crop)+"_"+self.padding+"_"+self.method+"_x"+str(self.scale)+".h5")
-        data, label = self.__prepare_test_data()
-        write_hdf5(data, label, self.H5_PATH+"/test_"+str(self.crop)+"_"+self.padding+"_"+self.method+"_x"+str(self.scale)+".h5")
-        data, label = self.__prepare_calib_data()
-        write_hdf5(data, label, self.H5_PATH+"/calib_"+str(self.crop)+"_"+self.padding+"_"+self.method+"_x"+str(self.scale)+".h5")
+        write_hdf5(data, label, self.H5_PATH+"crop_train_"+str(self.crop)+"_"+self.padding+"_"+self.method+"_x"+str(self.scale)+".h5")
+        data, label = self.__prepare_val_data()
+        write_hdf5(data, label, self.H5_PATH+"val_"+str(self.crop)+"_"+self.padding+"_"+self.method+"_x"+str(self.scale)+".h5")
+        data, label, names = self.__prepare_test_data()
+        write_hdf5(data, label, self.H5_PATH+"test_"+self.padding+"_"+self.method+"_x"+str(self.scale)+".h5", names)
+        # data, label = self.__prepare_calib_data()
+        # write_hdf5(data, label, self.H5_PATH+"/calib_"+str(self.crop)+"_"+self.padding+"_"+self.method+"_x"+str(self.scale)+".h5")
     # _, _a = read_training_data("train.h5")
     # _, _a = read_training_data("test.h5")
 

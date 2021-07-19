@@ -19,6 +19,9 @@ def mssim(img1, img2):
 def niqe(img):
 	return float(skvideo.measure.niqe(img)[0])
 
+# https://github.com/utlive/live_python_qa
+
+
 # # to be done in matlab
 # def brisque(img):
 # 	# https://blog.csdn.net/qq_35860352/article/details/84037501?utm_medium=distribute.pc_aggpage_search_result.none-task-blog-2~aggregatepage~first_rank_v2~rank_aggregation-5-84037501.pc_agg_rank_aggregation&utm_term=msssim&spm=1000.2123.3001.4430	
@@ -50,8 +53,8 @@ def niqe(img):
 
 
 def ssimFunc(img1, img2):
-	C1 = (0.01 * 255)**2
-	C2 = (0.03 * 255)**2
+	C1 = (0.01 * 255.)**2
+	C2 = (0.03 * 255.)**2
 	img1 = img1.astype(np.float64)
 	img2 = img2.astype(np.float64)
 	kernel = cv2.getGaussianKernel(11, 1.5)
@@ -70,11 +73,23 @@ def ssimFunc(img1, img2):
 	return ssim_map.mean()
 
 
-def ssim(img1, img2):
+def ssim(img1, img2, renorm = 256.):
 	
 	if isinstance(img1,torch.Tensor):
-		img1 = img1.cpu().detach().numpy()
-		img2 = img2.cpu().detach().numpy()
+		img1 = img1.cpu().detach().numpy()*renorm
+		img2 = img2.cpu().detach().numpy()*renorm
+		
+	img1 = np.round(img1)
+	img2 = np.round(img2)
+
+	img1[img1[:] > 255] = 255
+	img1[img1[:] < 0] = 0
+	img1 = img1.astype(np.uint8)
+
+	img2[img2[:] > 255] = 255
+	img2[img2[:] < 0] = 0
+	img2 = img2.astype(np.uint8)
+
 	# if not img1.shape == img2.shape:
 	# 	raise ValueError('Input images must have the same dimensions.')
 	if img1.ndim == 2:
@@ -103,6 +118,7 @@ def ssim(img1, img2):
 		raise ValueError('Wrong input image dimensions.')
 
 def psnr(label, outputs, max_val=(1-2**-8)):
+	# max_val = 255.
 	"""
 	Compute Peak Signal to Noise Ratio (the higher the better).
 	PSNR = 20 * log10(MAXp) - 10 * log10(MSE).
@@ -111,11 +127,22 @@ def psnr(label, outputs, max_val=(1-2**-8)):
 	"""
     # Here we check if it is a tensor or a ndarray
 	if isinstance(label,torch.Tensor):
-		label = label.cpu().detach().numpy()
-		outputs = outputs.cpu().detach().numpy()
+		label = label.cpu().detach().numpy()*256.
+		outputs = outputs.cpu().detach().numpy()*256.
 	elif isinstance(label,np.ndarray): # be careful here, check how it is encoded
-		label = label/255
-		outputs = outputs/255
+		label = label
+		outputs = outputs
+	label = np.round(label)
+	outputs = np.round(outputs)
+
+	label[label[:] > 255] = 255
+	label[label[:] < 0] = 0
+	label = label/256.
+
+	outputs[outputs[:] > 255] = 255
+	outputs[outputs[:] < 0] = 0
+	outputs = outputs/256.
+
 	img_diff = outputs - label
 	rmse = np.sqrt(np.mean((img_diff) ** 2))
 	if rmse == 0:

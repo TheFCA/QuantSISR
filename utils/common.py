@@ -28,10 +28,12 @@ def PrepareParams(params_partial):
     # train_path = '/mnt/0eafdae2-1d8c-43b3-aa1a-2eac4df4bfc5/data/qfastMRI/crop_train_'+str(W)+'_'+padding+'_'+method+'_x'+str(scale)+'.h5' #_fca.h5 funciona
 
     tfile = 'crop_train_'+str(params['crop_size'])+'_'+params['padding']+'_'+params['method']+'_x'+str(scale)+'.h5'
-    vfile = 'test_'+str(params['crop_size'])+'_'+params['padding']+'_'+params['method']+'_x'+str(scale)+'.h5'
+    vfile = 'val_'+str(params['crop_size'])+'_'+params['padding']+'_'+params['method']+'_x'+str(scale)+'.h5'
+    tstfile = 'test_'+params['padding']+'_'+params['method']+'_x'+str(scale)+'.h5'
 
     params['training_path'] = params['data_path'] + tfile
     params['validation_path'] = params['data_path'] + vfile
+    params['test_path'] = params['data_path'] + tstfile
 
     # if os.path.isfile(params['training_path']) is False:
     #     print(str(tfile)+' dataset does not exist. Run prepare_data with the desired parameters')

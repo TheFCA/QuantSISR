@@ -143,7 +143,7 @@ if hasattr(model,'GNoise'): params['GNoise'] = model.GNoise
 
 # Create dataloaders
 DataLoader = SRDataLoader(params)
-train_loader, val_loader = DataLoader()
+train_loader, val_loader = DataLoader(Train=True,Test=False)
 
 # Create Trainer object
 trainer = Trainer(model, train_loader, val_loader, params)
