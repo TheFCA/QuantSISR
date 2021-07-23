@@ -201,6 +201,23 @@ class ReLUActQuant(CommonAct,ActQuantSolver):
     compute_output_bit_width=False
     per_channel_broadcastable_shape = None
     
+class HardTanhActQuant(CommonAct,ActQuantSolver):
+    # quant_type = QuantType.INT
+    bit_width_impl_type = BitWidthImplType.CONST
+    float_to_int_impl_type = FloatToIntImplType.ROUND
+    narrow_range = True
+    signed = True
+    zero_point_impl = ZeroZeroPoint
+    scaling_impl_type = ScalingImplType.PARAMETER
+    scaling_min_val   = 2e-32
+    restrict_scaling_type = RestrictValueType.FP
+    scaling_per_output_channel = False
+    # max_val = 0.25
+    # min_val = 0.0
+    # return_quant_tensor = True
+    compute_output_scale=False
+    compute_output_bit_width=False
+    per_channel_broadcastable_shape = None
 
 class BinaryActQuant2(CommonQuant,ActQuantSolver):
     quant_type = QuantType.INT

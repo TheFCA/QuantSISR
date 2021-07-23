@@ -54,7 +54,7 @@ from qnn_utils.common import IntWeightQuant
 ##  Bias
 from qnn_utils.common import Int8BiasQuant,FPBiasQuant
 ##  Activations
-from qnn_utils.common import ReLUActQuant
+from qnn_utils.common import ReLUActQuant,HardTanhActQuant
 
 # from brevitas.core.quant import QuantType
 import yaml
@@ -115,9 +115,9 @@ class dncnn(nn.Module):
             return_quant_tensor = return_quant_tensor)
             )
         self.layers.append(
-            qnn.QuantReLU(
+            qnn.QuantHardTanh(
             bit_width=self.nba,
-            act_quant = ReLUActQuant,
+            act_quant = HardTanhActQuant,
             return_quant_tensor = return_quant_tensor)
             )
         for _ in range(self.nlayers-2):
@@ -138,9 +138,9 @@ class dncnn(nn.Module):
             self.layers.append(nn.BatchNorm2d(num_features=self.features))
 
             self.layers.append(
-                qnn.QuantReLU(
+                qnn.QuantHardTanh(
                 bit_width=self.nba,
-                act_quant = ReLUActQuant,
+                act_quant = HardTanhActQuant,
                 return_quant_tensor = return_quant_tensor)
                 )
 

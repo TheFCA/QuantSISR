@@ -86,7 +86,7 @@ parser.add_argument(
 parser.add_argument(
     '--quant',
     type=str,
-    default='PTQ',
+    default='QAT',
     help='Quant type: QAT or PTQ')   
 
 flags, args = parser.parse_known_args()
@@ -127,7 +127,7 @@ if params['Training'] == 'QAT':
     complete_name = model.name + flags.tag
 else:
     modelClass = importModelClass('ptq_models.'+flags.model)
-    model = modelClass()
+    model = modelClass(bias=bias)
     complete_name = model.name +'_float32'+ flags.tag
 
 model.to(device)

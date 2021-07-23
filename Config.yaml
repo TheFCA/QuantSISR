@@ -1,5 +1,5 @@
 # This is the configuration file for training
-epochs: 1
+epochs: 10
 # lr : 1.0e-4 #1.0e-4
 # batch_size: 100
 

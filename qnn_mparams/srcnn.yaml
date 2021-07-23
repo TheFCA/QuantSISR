@@ -6,8 +6,8 @@ batch_size: 100
 
 # Model parameters
 RESIDUAL: False
-# IC = [1,64,32] # Input Channels  model 2
-IC: [1,256,128] # Input channels model 2
+IC : [1,64,32] # Input Channels  model 2
+#IC: [1,256,128] # Input channels model 2
 KS: [9,3,5]
 # Quantization parameters
 ENABLE_BIAS       : True # This is set to False, since 2021 FINN version does not support it correctly

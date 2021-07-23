@@ -9,7 +9,7 @@ from qnn_utils.common import IntWeightQuant
 ##  Bias
 from qnn_utils.common import Int8BiasQuant,FPBiasQuant
 ##  Activations
-from qnn_utils.common import ReLUActQuant
+from qnn_utils.common import ReLUActQuant,HardTanhActQuant
 
 # from brevitas.core.quant import QuantType
 import yaml
