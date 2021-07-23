@@ -15,22 +15,62 @@ from pathlib import Path
 # np.set_printoptions(threshold=sys.maxsize)
 
 class Inferencer:
-    def __init__(self,model,params):
+    def __init__(self,model,params, load):
         self.mon_img = params['mon_img']
         self.model = model
         self.device = params['device']
         self.scale = params['scale']
         self.params = params # for other params
-        self._load()
+        if load:
+            self._load() 
     
     def _load(self):
-        cpath = self.params['output_path'] + '/' + self.params['name']+'_W'+str(self.params['nbk'])+'A'+str(self.params['nba'])       
+        cpath = self.params['output_path'] + '/' + self.params['name']+'_W'+str(self.params['nbk'])+'A'+str(self.params['nba']) if self.params['Training'] == 'QAT' else self.params['output_path'] + '/' + self.params['name']
         if self.params['checkpoint'] is None:
             load_file = torch.load(cpath+'_Best.pth')
         else:
             load_file = torch.load(cpath+"_"+'{:03d}'.format(self.params['checkepoch'])+'.pth')
         self.model.load_state_dict(load_file['model_state_dict'])
 
+
+    def calibration(self,caldataset):
+        # PTQ Case, be aware it should run on CPU#
+        self.caldataset = caldataset
+        # self.model.qconfig = torch.quantization.default_qconfig
+        self.model.qconfig = torch.quantization.get_default_qconfig('fbgemm')
+        self.model.fuse_modules()
+        torch.quantization.prepare(self.model, inplace=True)
+        self.model.eval()
+        self.criterion = torch.nn.MSELoss(reduction='mean') #sum or mean
+        self.criterion.eval()        
+        running_loss = 0.0
+        running_psnr = 0.0
+        # max_val = 1 - 2**-8
+        with torch.no_grad():
+            tk0 = tqdm(enumerate(self.caldataset), total=int(len(self.caldataset.dataset)/self.caldataset.batch_size),disable=self.params['Verbose'])
+            counter = 0
+            for bi, data in tk0:
+                image_data = data[0].to(self.device)
+                label = data[1].to(self.device)
+                if self.model.residual == True:
+                    outputs = torch.clamp(image_data+self.model(image_data), 0., 1.)
+                    
+                else:
+                    outputs = self.model(image_data)            
+                loss = self.criterion(outputs, label)
+                # add loss of each item (total items in a batch = batch size) 
+                running_loss += loss.item()
+                counter += 1
+                # calculate batch psnr (once every `batch_size` iterations)
+                if isinstance(outputs, QuantTensor):
+                    batch_psnr =  psnr(label, outputs.tensor)
+                else:
+                    batch_psnr =  psnr(label, outputs)       
+                running_psnr += batch_psnr
+                tk0.set_postfix({'loss': '[{:4f}]'.format(running_loss/(counter)),'psnr': '[{:4f}]'.format(running_psnr/(counter))}) 
+
+        self.model.to('cpu')
+        torch.quantization.convert(self.model, inplace=True)
 
     def monitor(self):
         IMG_NAME = self.mon_img #"/mnt/0eafdae2-1d8c-43b3-aa1a-2eac4df4bfc5/data/qfastMRI/Val/HR_file1000033_25_CORPD_FBK.png"

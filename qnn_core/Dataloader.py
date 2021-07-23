@@ -67,6 +67,6 @@ class SRDataLoader():
         if (Train == True) & (Test == False):
             return tLoader, vLoader
         elif (Train == False) & (Test == True):
-            return tstLoader
+            return tstLoader, vLoader
         else:
-            return tLoader, vLoader, tstLoader
+            return tLoader, vLoader, tstLoader, vLoader

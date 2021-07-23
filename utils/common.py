@@ -18,8 +18,12 @@ def PrepareParams(params_partial):
     name = params_partial['name']
     nbk = params_partial['nbk']
     nba = params_partial['nba']
+    
+    if params_partial['Training'] == 'QAT':
+        save_path = 'outputs/scale'+str(scale)+'/'+name+'_W'+str(nbk)+'A'+str(nba)
+    else:
+        save_path = 'outputs/scale'+str(scale)+'/'+name
 
-    save_path = 'outputs/scale'+str(scale)+'/'+name+'_W'+str(nbk)+'A'+str(nba)
     Path(save_path).mkdir(parents=True, exist_ok=True)
     with open(r'Config.yaml') as file:
         params = yaml.load(file, Loader=yaml.FullLoader)

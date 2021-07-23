@@ -258,7 +258,7 @@ class Trainer():
             train_epoch_loss, train_epoch_psnr, train_epoch_ssim = self.train_epoch()
             val_epoch_loss, val_epoch_psnr,val_epoch_ssim = self.eval_epoch()
             
-            Imodel = Inferencer(self.model, self.params)
+            Imodel = Inferencer(self.model, self.params, load = False)
             bi_epoch_psnr,out_epoch_psnr = Imodel.monitor()
             # Imodel.visualize_feature_maps()
             print(f"Train PSNR: {train_epoch_psnr:.5f}")

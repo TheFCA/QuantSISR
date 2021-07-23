@@ -10,7 +10,7 @@ class Printer():
         self.nbk = params['nbk']
         self.nba = params['nba']
         self.path = params['output_path']
-        self.id = self.name+'_W'+str(self.nbk)+'A'+str(self.nba)
+        self.id = self.name+'_W'+str(self.nbk)+'A'+str(self.nba) if params['Training'] == 'QAT' else self.name
         self.train_loss = []
         self.val_loss = []
         self.train_psnr = []

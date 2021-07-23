@@ -4,9 +4,9 @@
 # fernando.carrio@uma.es
 #########
 
-from six import viewitems
 import torch
 from qnn_models import *
+from ptq_models import *
 from utils.common import *
 from qnn_core.Dataloader import SRDataLoader
 from qnn_core.trainer import Trainer
@@ -83,6 +83,11 @@ parser.add_argument(
     type=int,
     default=0,
     help='Indicate epoch to resume')    
+parser.add_argument(
+    '--quant',
+    type=str,
+    default='PTQ',
+    help='Quant type: QAT or PTQ')   
 
 flags, args = parser.parse_known_args()
 
@@ -110,14 +115,23 @@ else:
     print('No checkpoint to load')
     load_from_epoch = False
 
-# Create model and move to device : {gpu or cpu}
-modelClass = importModelClass('qnn_models.'+flags.model)
-model = modelClass(nbk=nbk,nba=nba,bias=bias)
-
-model.to(device)
 
 # Preparation of the parameters used for the trainer and inferencer
 params = {}
+params['Training'] = flags.quant
+
+# Create model and move to device : {gpu or cpu}
+if params['Training'] == 'QAT':
+    modelClass = importModelClass('qnn_models.'+flags.model)
+    model = modelClass(nbk=nbk,nba=nba,bias=bias)
+    complete_name = model.name + flags.tag
+else:
+    modelClass = importModelClass('ptq_models.'+flags.model)
+    model = modelClass()
+    complete_name = model.name +'_float32'+ flags.tag
+
+model.to(device)
+
 
 # General parameters
 params['device'] = device
@@ -126,7 +140,6 @@ params['nbk'] = nbk
 params['nba'] = nba
 
 # Training and Model parameters
-complete_name = model.name + flags.tag
 params['name'] = complete_name
 params['crop_size'] = model.crop_size
 params['stride'] = model.stride
@@ -163,7 +176,6 @@ if (load):
         trainer.load_pretrain(load_file)
     else:
         print ('No file was found. Training from scratch.')
-
 # Train the network!
 start = time.time()
 # Here you can tuner your losses, optimizer, criterion
