@@ -4,12 +4,12 @@
 #Pathsa
 train_path: /mnt/0eafdae2-1d8c-43b3-aa1a-2eac4df4bfc5/data/qfastMRI/Train/
 val_path: /mnt/0eafdae2-1d8c-43b3-aa1a-2eac4df4bfc5/data/qfastMRI/Val/
-test_path: /mnt/0eafdae2-1d8c-43b3-aa1a-2eac4df4bfc5/data/qfastMRI/Test/
+tst_path: /mnt/0eafdae2-1d8c-43b3-aa1a-2eac4df4bfc5/data/qfastMRI/Test/
+calib_path: /mnt/0eafdae2-1d8c-43b3-aa1a-2eac4df4bfc5/data/qfastMRI/Val/
 h5f_path: /mnt/0eafdae2-1d8c-43b3-aa1a-2eac4df4bfc5/data/qfastMRI/
 
 #Configuration
 augmentation: True
 
 # Other methods TODO
-padding: same
-method: bicubic
+

@@ -62,7 +62,7 @@ class IntWeightQuant(CommonQuant,WeightQuantSolver):
     signed = True
     scaling_stats_op = StatsOp.MAX
     scaling_per_output_channel = True # Poner a True
-    scaling_min_val   = 2e-32
+    scaling_min_val   = 2e-16
     zero_point_impl = ZeroZeroPoint
     float_to_int_impl_type = FloatToIntImplType.ROUND
 
@@ -80,7 +80,7 @@ class CommonWeightQuantPos(WeightQuantSolver):
     signed = False
     scaling_stats_op = StatsOp.MAX
     scaling_per_output_channel = True # Poner a True
-    scaling_min_val   = 2e-32
+    scaling_min_val   = 2e-16
 from brevitas.quant.base import IntQuant
 from brevitas.core.function_wrapper import TensorClamp
 class Int8BiasQuant(IntQuant, BiasQuantSolver):
@@ -191,7 +191,7 @@ class ReLUActQuant(CommonAct,ActQuantSolver):
     signed = False
     zero_point_impl = ZeroZeroPoint
     scaling_impl_type = ScalingImplType.PARAMETER
-    scaling_min_val   = 2e-32
+    scaling_min_val   = 2e-16
     restrict_scaling_type = RestrictValueType.FP
     scaling_per_output_channel = False
     # max_val = 0.25
@@ -209,7 +209,7 @@ class HardTanhActQuant(CommonAct,ActQuantSolver):
     signed = True
     zero_point_impl = ZeroZeroPoint
     scaling_impl_type = ScalingImplType.PARAMETER
-    scaling_min_val   = 2e-32
+    scaling_min_val   = 2e-16
     restrict_scaling_type = RestrictValueType.FP
     scaling_per_output_channel = False
     # max_val = 0.25

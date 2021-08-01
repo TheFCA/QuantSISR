@@ -4,6 +4,10 @@ import h5py
 import os
 from utils.prepare_data import *
 
+from PIL import Image
+import numpy as np
+import copy
+
 class SRDataset(Dataset):
     def __init__(self, inputs, labels, names = None):
         self.inputs = inputs
@@ -13,9 +17,25 @@ class SRDataset(Dataset):
     def __len__(self):
         return (len(self.inputs))
 
+    # def __process__(self,image, min_val=0, max_val=255):
+    #     # __process__ function is required when images are in RGB mode
+    #     # to get the luminance (Y). Grey images don't need to do this
+    #     # preprocessing, since the is no data to extract
+    #     image = np.squeeze(image).astype('float32')*256.
+    #     image = (image - min_val) / (max_val - min_val)
+    #     image = image.clip(0, 1) * 255
+    #     image = Image.fromarray(np.squeeze(image).astype('uint8'), mode='L').convert('YCbCr')
+    #     image = np.asarray(image, dtype=np.uint8)
+    #     image = image.transpose([2, 0, 1])
+    #     image = image[0,:,:]
+    #     image = image[np.newaxis,...]
+    #     # Images have to be scaled by 256 with quantized models
+    #     return copy.deepcopy(image)/256
+
     def __getitem__(self, index):
         input = self.inputs[index]
         label = self.labels[index]
+
         if self.names is None:
             return (
                 torch.tensor(input, dtype=torch.float),
@@ -32,14 +52,30 @@ class SRDataLoader():
         self.tpath = params['training_path']
         self.vpath = params['validation_path']
         self.tstpath = params['test_path']
-
+        self.calpath = params['calib_path']
         self.batch_size = params['batch_size']
         self.params = params
+        self.img_mode = 'L' # TODO -> 'RGB'
+
+    def __process__(self,image, min_val=0, max_val=255):
+        # __process__ function is required when images are in RGB mode
+        # to get the luminance (Y). Grey images don't need to do this
+        # preprocessing, since the is no data to extract
+        image = np.squeeze(image).astype('float32')*256.
+        image = (image - min_val) / (max_val - min_val)
+        image = image.clip(0, 1) * 255
+        image = Image.fromarray(np.squeeze(image).astype('uint8'), mode='L').convert('YCbCr')
+        image = np.asarray(image, dtype=np.uint8)
+        image = image.transpose([2, 0, 1])
+        image = image[0,:,:]
+        image = image[np.newaxis,...]
+        # Images have to be scaled by 256 with quantized models
+        return image/256
 
     def load(self,datapath):
         if os.path.isfile(datapath) == False:
             print("Dataset file does not exist. Generating one (might take some minutes)")
-            DatasetObj = CreateDataset()
+            DatasetObj = CreateDataset(self.params)
             DatasetObj.override(self.params) # we expect scale, crop_size and stride
             DatasetObj.writeDataset()
         file = h5py.File(datapath,mode='r')
@@ -47,6 +83,12 @@ class SRDataLoader():
         inputs = file['data'][:].astype('float32')*255.0/256.0 # the training data, .astype('int') float32
         labels = file['label'][:].astype('float32')*255.0/256.0 # the training labels
         
+        if self.img_mode == 'RGB': # Extract Y
+            for idx in range(inputs.shape[0]):
+                # process
+                inputs[idx,...] = self.__process__(inputs[idx,...])
+                labels[idx,...] = self.__process__(labels[idx,...])
+
         if file.get('names') is None:
             TestData = False
         else:
@@ -63,10 +105,11 @@ class SRDataLoader():
     def __call__(self, Train=False, Test=False):
         tLoader = self.load(self.tpath)
         vLoader = self.load(self.vpath)
-        tstLoader = self.load(self.tstpath)        
+        tstLoader = self.load(self.tstpath) 
+        calLoader = self.load(self.calpath) 
         if (Train == True) & (Test == False):
             return tLoader, vLoader
         elif (Train == False) & (Test == True):
-            return tstLoader, vLoader
+            return tstLoader, calLoader
         else:
-            return tLoader, vLoader, tstLoader, vLoader
+            return tLoader, vLoader, tstLoader, calLoader

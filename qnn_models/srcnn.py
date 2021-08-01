@@ -20,6 +20,17 @@ from qnn_utils.common import ReLUActQuant, HardTanhActQuant
 # from brevitas.core.quant import QuantType
 import yaml
 
+def QuantActivation(name):
+    # components = name.split('.')
+    mod = __import__('brevitas')
+    mod = getattr(mod, 'nn')
+    mod = getattr(mod, name)
+    if name == 'QuantHardTanh':
+        return mod,HardTanhActQuant
+    elif name == 'QuantReLU':
+        return mod, ReLUActQuant
+    return 
+
 class srcnn(nn.Module):
     def __init__(self,nbk = 8, nba = 8, **kwargs):
         super(srcnn, self).__init__()
@@ -50,7 +61,9 @@ class srcnn(nn.Module):
         # Dataset parameters
         self.crop_size = params ['crop_size']
         self.stride = params ['stride']
-
+        self.padding    = params ['padding']
+        self.method     = params ['method']
+        
         if self.nba is not None: # Last Activation
             nlact = 8
         else:
@@ -74,9 +87,11 @@ class srcnn(nn.Module):
             return_quant_tensor = return_quant_tensor
             )
 
-        self.relu1 = qnn.QuantHardTanh(
+        # self.relu1 = qnn.QuantHardTanh(
+        ActClass, quantizer = QuantActivation('QuantReLU') #'QuantHardTanh'
+        self.relu1 = ActClass(
             bit_width=self.nba,
-            act_quant = HardTanhActQuant,
+            act_quant = quantizer,
             return_quant_tensor = return_quant_tensor
             )
 
@@ -94,9 +109,10 @@ class srcnn(nn.Module):
             return_quant_tensor = return_quant_tensor
             )
       
-        self.relu2 = qnn.QuantHardTanh(
+        # self.relu2 = qnn.QuantHardTanh(
+        self.relu2 = ActClass(            
             bit_width=self.nba,
-            act_quant = HardTanhActQuant,
+            act_quant = quantizer,
             return_quant_tensor = return_quant_tensor
             )
         
@@ -114,9 +130,9 @@ class srcnn(nn.Module):
             return_quant_tensor = return_quant_tensor
             )
 
-        self.relu3 = qnn.QuantHardTanh(
+        self.relu3 = qnn.QuantReLU(
             bit_width           = nlact,
-            act_quant           = HardTanhActQuant,
+            act_quant           = ReLUActQuant,
             return_quant_tensor = False
             )
         

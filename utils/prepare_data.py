@@ -24,34 +24,36 @@ def write_hdf5(data, labels, output_filename, names=None):
         # h.create_dataset()
 
 
-# def read_training_data(file):
-#     with h5py.File(file, 'r') as hf:
-#         data = np.array(hf.get('data'))
-#         label = np.array(hf.get('label'))
-#         train_data = np.transpose(data, (0, 2, 3, 1))
-#         train_label = np.transpose(label, (0, 2, 3, 1))
+def read_training_data(file):
+    with h5py.File(file, 'r') as hf:
+        data = np.array(hf.get('data'))
+        label = np.array(hf.get('label'))
+        train_data = np.transpose(data, (0, 2, 3, 1))
+        train_label = np.transpose(label, (0, 2, 3, 1))
 
-#         return train_data, train_label
+        return train_data, train_label
 
-# def read_test_data(file):
-#     with h5py.File(file, 'r') as hf:
-#         data = np.array(hf.get('data'))
-#         label = np.array(hf.get('label'))
-#         names = np.array(hf.get('names'))
-#         test_data = np.transpose(data, (0, 2, 3, 1))
-#         test_label = np.transpose(label, (0, 2, 3, 1))
+def read_test_data(file):
+    with h5py.File(file, 'r') as hf:
+        data = np.array(hf.get('data'))
+        label = np.array(hf.get('label'))
+        names = np.array(hf.get('names'))
+        test_data = np.transpose(data, (0, 2, 3, 1))
+        test_label = np.transpose(label, (0, 2, 3, 1))
 
-#         return test_data, test_label, names
+        return test_data, test_label, names
 
 class CreateDataset():
-    def __init__(self):
+    def __init__(self, params_partial):
         with open(r'utils/DatasetConfig.yaml') as file:
             params = yaml.load(file, Loader=yaml.FullLoader)
-        params      = {**params}
+#        params      = {**params}
+        params = {**params, **params_partial}
+
         # From yaml config file
         self.DATA_PATH   = params['train_path']
         self.VAL_PATH    = params['val_path']
-        self.TEST_PATH   = params['test_path']
+        self.TEST_PATH   = params['tst_path']
         self.H5_PATH     = params['h5f_path']
         self.method      = params['method']
         self.padding     = params['padding']
@@ -137,6 +139,135 @@ class CreateDataset():
         label = np.array(label, dtype=float)
         return data, label
 
+    def __prepare_train_data_upsample(self):
+        names = os.listdir(self.DATA_PATH)
+        names = sorted(names)
+        nums = names.__len__()
+        data = []
+        label = []
+        for i in range(nums):
+            name = self.DATA_PATH + names[i]
+            # print(name)
+            
+            BLOCK_SIZE = self.crop
+            BLOCK_STEP = self.stride
+
+            hr_img = cv2.imread(name, cv2.IMREAD_COLOR)
+            hr_img = cv2.cvtColor(hr_img, cv2.COLOR_BGR2YCrCb)
+            hr_img = hr_img[:, :, 0]
+            shape = hr_img.shape
+            lr_img = cv2.resize(hr_img, (shape[1] // self.scale, shape[0] // self.scale), interpolation=cv2.INTER_CUBIC)
+
+            width_num = (shape[0] - (BLOCK_SIZE - BLOCK_STEP) * 2) // BLOCK_STEP
+            height_num = (shape[1] - (BLOCK_SIZE - BLOCK_STEP) * 2) // BLOCK_STEP
+            for k in range(width_num):
+                for j in range(height_num):
+                    x1 = k * BLOCK_STEP
+                    y1 = j * BLOCK_STEP
+                    hr_patch = hr_img[x1: x1 + BLOCK_SIZE, y1: y1 + BLOCK_SIZE]
+                    
+                    x2 = k * BLOCK_STEP//self.scale
+                    y2 = j * BLOCK_STEP//self.scale
+                    lr_patch = lr_img[x2: x2 + BLOCK_SIZE//self.scale, y2: y2 + BLOCK_SIZE//self.scale]
+ 
+#                     #/256.
+                    # two resize operation to produce training data and labels
+                    
+                    hr_patch = hr_patch.astype(float) / 255. #/256.
+                    lr_patch = lr_patch.astype(float) / 255.
+                    lr = np.zeros((1,self.crop//self.scale, self.crop//self.scale), dtype=np.float32) #dtype = np.double
+                    hr = np.zeros((1,self.crop, self.crop), dtype=np.float32)
+                    
+                    lr[:,:] = lr_patch                
+
+                    # if padding == "valid": # TODO - Not implemented
+                    #     hr[:,:] = hr_patch[conv_side: -conv_side, conv_side: -conv_side]
+                    # else:
+                    hr[:,:] = hr_patch                
+                    data.append(lr)
+                    label.append(hr)
+
+                if self.augmentation:
+                    lrflip = np.fliplr(lr)
+                    hrflip = np.fliplr(hr)
+                    data.append(lrflip)
+                    label.append(hrflip) 
+                    lr90 = lr             
+                    hr90 = hr
+
+                    for i in range(3): #rotate 90,180, and 270
+                        hr90,lr90,hr90flip,lr90flip = self.__gen_augmentation(hr90,lr90)
+                        data.append(lr90)
+                        label.append(hr90) 
+                        data.append(lr90flip)
+                        label.append(hr90flip)                   
+        data = np.array(data, dtype=float)
+        label = np.array(label, dtype=float)
+        return data, label
+
+#     def __prepare_train_data_upsample(self):
+#         names = os.listdir(self.DATA_PATH)
+#         names = sorted(names)
+#         nums = names.__len__()
+#         data = []
+#         label = []
+#         for i in range(nums):
+#             name = self.DATA_PATH + names[i]
+#             # print(name)
+            
+#             BLOCK_SIZE = self.crop
+#             BLOCK_STEP = self.stride
+
+#             hr_img = cv2.imread(name, cv2.IMREAD_COLOR)
+#             hr_img = cv2.cvtColor(hr_img, cv2.COLOR_BGR2YCrCb)
+#             hr_img = hr_img[:, :, 0]
+#             shape = hr_img.shape
+
+#             width_num = (shape[0] - (BLOCK_SIZE - BLOCK_STEP) * 2) // BLOCK_STEP
+#             height_num = (shape[1] - (BLOCK_SIZE - BLOCK_STEP) * 2) // BLOCK_STEP
+#             for k in range(width_num):
+#                 for j in range(height_num):
+#                     x = k * BLOCK_STEP
+#                     y = j * BLOCK_STEP
+#                     hr_patch = hr_img[x: x + BLOCK_SIZE, y: y + BLOCK_SIZE]
+#                     # lr_patch = lr_img[x: x + BLOCK_SIZE, y: y + BLOCK_SIZE]
+ 
+# #                     #/256.
+#                     # two resize operation to produce training data and labels
+#                     lr_patch = cv2.resize(hr_patch, (BLOCK_SIZE // self.scale, BLOCK_SIZE // self.scale), interpolation=cv2.INTER_CUBIC)
+                    
+#                     hr_patch = hr_patch.astype(float) / 255. #/256.
+#                     lr_patch = lr_patch.astype(float) / 255.
+#                     lr = np.zeros((1,self.crop//self.scale, self.crop//self.scale), dtype=np.float32) #dtype = np.double
+#                     hr = np.zeros((1,self.crop, self.crop), dtype=np.float32)
+                    
+#                     lr[:,:] = lr_patch                
+
+#                     # if padding == "valid": # TODO - Not implemented
+#                     #     hr[:,:] = hr_patch[conv_side: -conv_side, conv_side: -conv_side]
+#                     # else:
+#                     hr[:,:] = hr_patch                
+#                     data.append(lr)
+#                     label.append(hr)
+
+#                 if self.augmentation:
+#                     lrflip = np.fliplr(lr)
+#                     hrflip = np.fliplr(hr)
+#                     data.append(lrflip)
+#                     label.append(hrflip) 
+#                     lr90 = lr             
+#                     hr90 = hr
+
+#                     for i in range(3): #rotate 90,180, and 270
+#                         hr90,lr90,hr90flip,lr90flip = self.__gen_augmentation(hr90,lr90)
+#                         data.append(lr90)
+#                         label.append(hr90) 
+#                         data.append(lr90flip)
+#                         label.append(hr90flip)                   
+#         data = np.array(data, dtype=float)
+#         label = np.array(label, dtype=float)
+#         return data, label
+
     def __prepare_val_data(self):
         names = os.listdir(self.VAL_PATH)
         names = sorted(names)
@@ -173,13 +304,82 @@ class CreateDataset():
                 # else:
                 label[i * Random_Crop + j, :, :] = hr_patch
         return data, label
+        
+    def __prepare_val_data_upsample(self):
+        names = os.listdir(self.VAL_PATH)
+        names = sorted(names)
+        nums = names.__len__()
+        data = []
+        label = []
+        for i in range(nums):
+            name = self.VAL_PATH + names[i]
+            # print(name)
+            
+            BLOCK_SIZE = self.crop
+            BLOCK_STEP = self.stride
+
+            hr_img = cv2.imread(name, cv2.IMREAD_COLOR)
+            hr_img = cv2.cvtColor(hr_img, cv2.COLOR_BGR2YCrCb)
+            hr_img = hr_img[:, :, 0]
+            shape = hr_img.shape
+            lr_img = cv2.resize(hr_img, (shape[1] // self.scale, shape[0] // self.scale), interpolation=cv2.INTER_CUBIC) #, interpolation=cv2.INTER_CUBIC
+
+            width_num = (shape[0] - (BLOCK_SIZE - BLOCK_STEP) * 2) // BLOCK_STEP
+            height_num = (shape[1] - (BLOCK_SIZE - BLOCK_STEP) * 2) // BLOCK_STEP
+            for k in range(width_num):
+                for j in range(height_num):
+                    x1 = k * BLOCK_STEP
+                    y1 = j * BLOCK_STEP
+                    hr_patch = hr_img[x1: x1 + BLOCK_SIZE, y1: y1 + BLOCK_SIZE]
+                    
+                    x2 = k * BLOCK_STEP//self.scale
+                    y2 = j * BLOCK_STEP//self.scale
+                    lr_patch = lr_img[x2: x2 + BLOCK_SIZE//self.scale, y2: y2 + BLOCK_SIZE//self.scale]
+
+                    # two resize operation to produce training data and labels
+                    
+                    hr_patch = hr_patch.astype(float) / 255. #/256.
+                    lr_patch = lr_patch.astype(float) / 255.
+                    lr = np.zeros((1,self.crop//self.scale, self.crop//self.scale), dtype=np.float32) #dtype = np.double
+                    hr = np.zeros((1,self.crop, self.crop), dtype=np.float32)
+                    
+                    lr[:,:] = lr_patch                
+
+                    # if padding == "valid": # TODO - Not implemented
+                    #     hr[:,:] = hr_patch[conv_side: -conv_side, conv_side: -conv_side]
+                    # else:
+                    hr[:,:] = hr_patch                
+                    data.append(lr)
+                    label.append(hr)
+
+                if self.augmentation:
+                    lrflip = np.fliplr(lr)
+                    hrflip = np.fliplr(hr)
+                    data.append(lrflip)
+                    label.append(hrflip) 
+                    lr90 = lr             
+                    hr90 = hr
+
+                    for i in range(3): #rotate 90,180, and 270
+                        hr90,lr90,hr90flip,lr90flip = self.__gen_augmentation(hr90,lr90)
+                        data.append(lr90)
+                        label.append(hr90) 
+                        data.append(lr90flip)
+                        label.append(hr90flip)                   
+        data = np.array(data, dtype=float)
+        label = np.array(label, dtype=float)
+        return data, label
+
     def __prepare_test_data(self):
         names = os.listdir(self.TEST_PATH)
         names = sorted(names)
         nums = names.__len__()
-        data    = np.zeros((nums,1, 320, 320), dtype=np.float32)
-        label   = np.zeros((nums,1, 320, 320), dtype=np.float32)
 
+        label   = np.zeros((nums,1, 320, 320), dtype=np.float32)
+        if self.method == 'upsample':
+            data    = np.zeros((nums,1, 320//self.scale, 320//self.scale), dtype=np.float32)
+        else:
+            data    = np.zeros((nums,1, 320, 320), dtype=np.float32)
         for i in range(nums):
             name = self.TEST_PATH + names[i]
             hr_img = cv2.imread(name, cv2.IMREAD_COLOR)
@@ -190,7 +390,8 @@ class CreateDataset():
             
             # two resize operation to produce training data and labels
             lr_img = cv2.resize(hr_img, (shape[1] // self.scale, shape[0] // self.scale), interpolation=cv2.INTER_CUBIC) #, interpolation=cv2.INTER_CUBIC
-            lr_img = cv2.resize(lr_img, (shape[1], shape[0]), interpolation=cv2.INTER_CUBIC) #, interpolation=cv2.INTER_CUBIC
+            if self.method == 'bicubic':
+                lr_img = cv2.resize(lr_img, (shape[1], shape[0]), interpolation=cv2.INTER_CUBIC) #, interpolation=cv2.INTER_CUBIC
 
             data[i, :, :]   = lr_img.astype(float) / 255.
             label[i, :, :]  = hr_img.astype(float) / 255.
@@ -201,8 +402,11 @@ class CreateDataset():
         names = sorted(names)
         nums = 30
 
-        data    = np.zeros((nums,1, 320, 320), dtype=np.float32)
         label   = np.zeros((nums,1, 320, 320), dtype=np.float32)
+        if self.method == 'upsample':
+            data    = np.zeros((nums,1, 320//self.scale, 320//self.scale), dtype=np.float32)
+        else:
+            data    = np.zeros((nums,1, 320, 320), dtype=np.float32)
 
         for i in range(nums):
             name = self.DATA_PATH + names[i]
@@ -214,19 +418,26 @@ class CreateDataset():
             
             # two resize operation to produce training data and labels
             lr_img = cv2.resize(hr_img, (shape[1] // self.scale, shape[0] // self.scale), interpolation=cv2.INTER_CUBIC) #, interpolation=cv2.INTER_CUBIC
-            lr_img = cv2.resize(lr_img, (shape[1], shape[0]), interpolation=cv2.INTER_CUBIC) #, interpolation=cv2.INTER_CUBIC
-
+            if self.method == 'bicubic':
+                lr_img = cv2.resize(lr_img, (shape[1], shape[0]), interpolation=cv2.INTER_CUBIC) #, interpolation=cv2.INTER_CUBIC
             data[i, :, :]   = lr_img
             label[i, :, :]  = hr_img
         return data, label
-    
     def writeDataset(self):
-        data, label = self.__prepare_train_data()
-        write_hdf5(data, label, self.H5_PATH+"crop_train_"+str(self.crop)+"_"+self.padding+"_"+self.method+"_x"+str(self.scale)+".h5")
-        data, label = self.__prepare_val_data()
-        write_hdf5(data, label, self.H5_PATH+"val_"+str(self.crop)+"_"+self.padding+"_"+self.method+"_x"+str(self.scale)+".h5")
+        if self.method == 'bicubic':
+            data_train, label_train = self.__prepare_train_data()
+            data_val, label_val = self.__prepare_val_data()
+        elif self.method == 'upsample':
+            data_train, label_train = self.__prepare_train_data_upsample()
+            data_val, label_val = self.__prepare_val_data_upsample()
+        else:
+            print ("Invalid method was selected")
+        write_hdf5(data_train, label_train, self.H5_PATH+"/crop_train_"+str(self.crop)+"_"+self.padding+"_"+self.method+"_x"+str(self.scale)+".h5")
+        write_hdf5(data_val, label_val, self.H5_PATH+"/val_"+str(self.crop)+"_"+self.padding+"_"+self.method+"_x"+str(self.scale)+".h5")
         data, label, names = self.__prepare_test_data()
         write_hdf5(data, label, self.H5_PATH+"test_"+self.padding+"_"+self.method+"_x"+str(self.scale)+".h5", names)
+        data, label = self.__prepare_calib_data()
+        write_hdf5(data, label, self.H5_PATH+"calib_"+self.padding+"_"+self.method+"_x"+str(self.scale)+".h5")
         # data, label = self.__prepare_calib_data()
         # write_hdf5(data, label, self.H5_PATH+"/calib_"+str(self.crop)+"_"+self.padding+"_"+self.method+"_x"+str(self.scale)+".h5")
     # _, _a = read_training_data("train.h5")

@@ -30,14 +30,17 @@ def PrepareParams(params_partial):
     params = {**params, **params_partial}
     params['output_path'] = save_path
     # train_path = '/mnt/0eafdae2-1d8c-43b3-aa1a-2eac4df4bfc5/data/qfastMRI/crop_train_'+str(W)+'_'+padding+'_'+method+'_x'+str(scale)+'.h5' #_fca.h5 funciona
-
+    print(params['padding'])
+    print(params['method'])
     tfile = 'crop_train_'+str(params['crop_size'])+'_'+params['padding']+'_'+params['method']+'_x'+str(scale)+'.h5'
     vfile = 'val_'+str(params['crop_size'])+'_'+params['padding']+'_'+params['method']+'_x'+str(scale)+'.h5'
     tstfile = 'test_'+params['padding']+'_'+params['method']+'_x'+str(scale)+'.h5'
+    calfile = 'calib_'+params['padding']+'_'+params['method']+'_x'+str(scale)+'.h5'
 
     params['training_path'] = params['data_path'] + tfile
     params['validation_path'] = params['data_path'] + vfile
     params['test_path'] = params['data_path'] + tstfile
+    params['calib_path'] = params['data_path'] + calfile
 
     # if os.path.isfile(params['training_path']) is False:
     #     print(str(tfile)+' dataset does not exist. Run prepare_data with the desired parameters')
@@ -47,20 +50,20 @@ def PrepareParams(params_partial):
     return params
 
 
-def str2bool(v):
-    if isinstance(v, bool):
-        return v
-    if v == None:
-        return v
-    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+def str2bool(value):
+    if isinstance(value, bool):
+        return value
+    if value == None:
+        return value
+    if value.lower() in ('yes', 'true', 't', 'y', '1'):
         return True
-    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+    elif value.lower() in ('no', 'false', 'f', 'n', '0'):
         return False
-    else:
-        pass
+    else: # Model Return
+        return value
     return
     
-def sel_load_file(nbk,scale, name):
+def auto_sel_load_file(nbk,nba,scale, name):
     if nbk == 8 or nbk == None:
         load_file = 'outputs/scale'+str(scale)+'/'+name+'_WNoneANone/'+name+'_WNoneANone_Best.pth'
         if (os.path.isfile(load_file)):
@@ -78,3 +81,10 @@ def sel_load_file(nbk,scale, name):
                     return load_file
                 else:
                     print ('File: ',load_file, ' does not exist.')
+def manual_sel_load_file(name,scale):
+    load_file = 'outputs/scale'+str(scale)+'/'+name+'/'+name+'_Best.pth'
+    if (os.path.isfile(load_file)):
+        print ('File: ',load_file, ' found and loaded.')
+        return load_file
+    else:
+        print ('File: ',load_file, ' does not exist.')

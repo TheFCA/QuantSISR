@@ -5,6 +5,7 @@ import numpy as np
 import cv2
 import torch
 import skvideo.measure
+import matplotlib.pyplot as plt
 # import .svmutil
 # import .svm
 # from .svm import gen_svm_nodearray
@@ -117,7 +118,7 @@ def ssim(img1, img2, renorm = 256.):
 	else:
 		raise ValueError('Wrong input image dimensions.')
 
-def psnr(label, outputs, max_val=(1-2**-8)):
+def psnr(label_in, outputs_in, max_val=(1-2**-8),printplots=False, crop_metrics=False, crop_px = 2):
 	# max_val = 255.
 	"""
 	Compute Peak Signal to Noise Ratio (the higher the better).
@@ -126,12 +127,23 @@ def psnr(label, outputs, max_val=(1-2**-8)):
 	First we need to convert torch tensors to NumPy operable.
 	"""
     # Here we check if it is a tensor or a ndarray
-	if isinstance(label,torch.Tensor):
-		label = label.cpu().detach().numpy()*256.
-		outputs = outputs.cpu().detach().numpy()*256.
-	elif isinstance(label,np.ndarray): # be careful here, check how it is encoded
-		label = label
-		outputs = outputs
+	if isinstance(label_in,torch.Tensor):
+		label_in = label_in.cpu().detach().numpy()*256.
+		outputs_in = outputs_in.cpu().detach().numpy()*256.
+	elif isinstance(label_in,np.ndarray): # be careful here, check how it is encoded
+		label_in = label_in
+		outputs_in = outputs_in
+
+	# This permits to crop some part of the sub-images during the training
+	# blurry edges of the sub-images could degrade the PSNR metrics
+	if (crop_metrics):
+		crop_dim = label_in.shape[-1]-crop_px*2
+		label 	= crop_img(label_in,crop_dim)
+		outputs = crop_img(outputs_in,crop_dim)
+	else:
+		label 	= label_in
+		outputs = outputs_in
+
 	label = np.round(label)
 	outputs = np.round(outputs)
 
@@ -142,16 +154,38 @@ def psnr(label, outputs, max_val=(1-2**-8)):
 	outputs[outputs[:] > 255] = 255
 	outputs[outputs[:] < 0] = 0
 	outputs = outputs/256.
-
 	img_diff = outputs - label
-	rmse = np.sqrt(np.mean((img_diff) ** 2))
+	if len(img_diff.shape)==4:
+		rmse = []
+		for i in range(img_diff.shape[0]):
+			rmse.append(np.sqrt(np.mean((img_diff[i,0,:,:]) ** 2)))
+		rmse = np.mean(rmse)
+	else:
+		# This is also valid for batches (as Keras does), giving an aproximate correct value
+		rmse = np.sqrt(np.mean((img_diff) ** 2))
+
+	if (printplots):
+		fig, (ax1, ax2, ax3) = plt.subplots(1, 3)
+		fig.suptitle('Horizontally stacked subplots')
+		ax1.imshow(label[0,0,:,:]*256)
+		ax2.imshow(outputs[0,0,:,:]*256)
+		ax3.imshow(img_diff[0,0,:,:]*256)
+		plt.show()
+
 	if rmse == 0:
 		return 100
 	elif np.isinf(rmse):
 		return 0 
 	else:
 		psnr_value = 20 * np.log10(max_val / rmse)
-		return psnr_value        
+		return np.average(psnr_value)
+
+def crop_img(img,crop_sz):
+	shape = img.shape
+	img_sz = shape[-1]
+	startx = img_sz//2-(crop_sz//2)
+	starty = img_sz//2-(crop_sz//2)    
+	return img[:,:,starty:starty+crop_sz,startx:startx+crop_sz]
 
 #https://github.com/andrewekhalel/sewar/blob/master/sewar/full_ref.py
 

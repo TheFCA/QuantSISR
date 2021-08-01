@@ -38,6 +38,9 @@ class drrn(nn.Module):
         self.crop_size = params ['crop_size']
         self.stride = params ['stride']        
         
+        self.quant = torch.quantization.QuantStub()
+        self.dequant = torch.quantization.DeQuantStub()
+        
         self.conv_in = nn.Conv2d(
             in_channels         = 1,
             out_channels        = 128, 
@@ -102,6 +105,7 @@ class drrn(nn.Module):
 
     def forward(self, x):
         # residual = self.inp_quant(x)
+        x = self.quant(x)
         inputs = self.conv_in(self.relu_in(x))
         out = inputs
         for _ in range(9):
@@ -109,5 +113,5 @@ class drrn(nn.Module):
             out = self.conv2(self.relu2(self.bn2(out)))
             out = torch.add(out, inputs)
         out = self.conv_out(self.relu_out(out))
-        # out = torch.add(out, residual)
+        out = self.dequant(out)
         return out

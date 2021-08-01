@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 import brevitas.nn as qnn
-
+# https://github.com/yjn870/SRDenseNet-pytorch/blob/master/models.py
 # Import custom quantizers for QNN-SuperResolution
 ##  weights
 from qnn_utils.common import IntWeightQuant
@@ -93,6 +93,7 @@ class DenseLayer(nn.Module):
     def forward(self, x):
         return torch.cat([x, self.relu_in(self.conv_in(x))], 1)
 
+
 class DenseBlock(nn.Module):
     def __init__(self, in_channels, growth_rate, num_layers,bit_width,act_width,ENABLE_BIAS,ENABLE_BIAS_QUANT):
         super(DenseBlock, self).__init__()
@@ -131,6 +132,8 @@ class DeConv(nn.Module):
                         out_channels        = out_channels, 
                         kernel_size         = kernel_size,
                         padding             = kernel_size//2,            
+                        stride              = 2,        
+                        output_padding      = 1,    
                         weight_bit_width    = bit_width,
                         weight_quant        = IntWeightQuant,
                         bias                = ENABLE_BIAS,
@@ -148,6 +151,8 @@ class DeConv(nn.Module):
                         out_channels        = out_channels, 
                         kernel_size         = kernel_size,
                         padding             = kernel_size//2,            
+                        stride              = 2,                                    
+                        output_padding      = 1,
                         weight_bit_width    = bit_width,
                         weight_quant        = IntWeightQuant,
                         bias                = ENABLE_BIAS,
@@ -191,8 +196,10 @@ class srdensenet(nn.Module):
         self.ENABLE_BIAS_QUANT = params['ENABLE_BIAS']
         
         # Dataset parameters
-        self.crop_size = params ['crop_size']
-        self.stride = params ['stride']
+        self.crop_size  = params ['crop_size']
+        self.stride     = params ['stride']
+        self.padding    = params ['padding']
+        self.method     = params ['method']
 
         if self.nba is not None: # Last Activation
             nlact = 8
@@ -204,14 +211,13 @@ class srdensenet(nn.Module):
 
         # low level features
         self.conv = ConvLayer(1, self.growth_rate * self.num_layers, 3,bit_width=self.nbk,act_width=self.nba, ENABLE_BIAS=self.ENABLE_BIAS, ENABLE_BIAS_QUANT=self.ENABLE_BIAS_QUANT)
-        # self.conv = ConvLayer(1, growth_rate * num_layers, 3,bit_width=8,act_width=8)
         
         # high level features
         self.dense_blocks = []
         for i in range(self.num_blocks):
             self.dense_blocks.append(
                 DenseBlock(
-                    self.growth_rate * self.num_layers * (i + 1),
+                    self.growth_rate * self.num_layers * (i +1), # primera iter entran/salen 16/16, 16/32, 16/48
                     self.growth_rate,
                     self.num_layers,
                     bit_width=self.nbk,
@@ -219,6 +225,7 @@ class srdensenet(nn.Module):
                     ENABLE_BIAS=self.ENABLE_BIAS,
                     ENABLE_BIAS_QUANT=self.ENABLE_BIAS_QUANT
                     ))
+        
         self.dense_blocks = nn.Sequential(*self.dense_blocks)
         
         # bottleneck layer
@@ -253,7 +260,23 @@ class srdensenet(nn.Module):
                                 )            
 
         _initialize_weights(self)
-    
+
+    # def _make_DenseBlock(self,in_channels,growth_rate, num_layers,bit_width,act_width,ENABLE_BIAS,ENABLE_BIAS_QUANT):
+    #     layers = []
+    #     for i in range(int(num_layers)):
+    #         layers.append(
+    #             DenseLayer(
+    #                 in_channels, 
+    #                 growth_rate,
+    #                 kernel_size=3,
+    #                 bit_width=bit_width,
+    #                 act_width=act_width,
+    #                 ENABLE_BIAS = ENABLE_BIAS,
+    #                 ENABLE_BIAS_QUANT = ENABLE_BIAS_QUANT)
+    #             )
+    #         in_channels += growth_rate
+    #     return nn.Sequential(*layers)
+
     def clip_weights(self, min_val, max_val):
         for mod in self.modules():
             if isinstance(mod, qnn.QuantConv2):

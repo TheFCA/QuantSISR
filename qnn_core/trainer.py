@@ -12,7 +12,6 @@ from qnn_core.EarlyStop import EarlyStopping
 from qnn_core.inferencer import Inferencer
 import brevitas.nn as qnn
 
-
 class Trainer():
     def __init__(self,model, train_dataset, val_dataset, params):
         # torch.set_num_threads(params['workers'])
@@ -21,7 +20,6 @@ class Trainer():
         self.epochs = params['epochs']
         self.init_randomness(params['seed'] or 0)
         self.device = params['device']
-
 
         self.tdataset = train_dataset
         self.vdataset = val_dataset
@@ -105,7 +103,8 @@ class Trainer():
         elif optimizer == "SGD":
             optimizer = optim.SGD(self.model.parameters(), lr=self.params.lr)
         else:
-            print ("We don't support other optimizer")
+            print ("We don't support any other optimizer")
+
     def init_scheduler(self,factor,patience, threshold, min_lr):
         
         self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(
@@ -138,6 +137,7 @@ class Trainer():
         for _, data in tk0:
             image_data = data[0].to(self.device)
             label = data[1].to(self.device)
+
             if hasattr(self.params,'GNoise'):
                 if self.params['GNoise'] == True:
                     # check for noise
@@ -211,33 +211,36 @@ class Trainer():
         with torch.no_grad():
             tk0 = tqdm(enumerate(self.vdataset), total=int(len(self.vdataset.dataset)/self.vdataset.batch_size),disable=self.params['Verbose'])
             counter = 0
-            for bi, data in tk0:
+            for _, data in tk0:
                 image_data = data[0].to(self.device)
                 label = data[1].to(self.device)
+
                 if self.model.residual == True:
                     # https://github.com/SaoYan/DnCNN-PyTorch/blob/master/train.py
                     outputs = torch.clamp(image_data+self.model(image_data), 0., max_val)
-                    
                 else:
                     outputs = self.model(image_data)            
+
                 loss = self.criterion(outputs, label)
                 # add loss of each item (total items in a batch = batch size) 
                 running_loss += loss.item()
                 counter += 1
                 # calculate batch psnr (once every `batch_size` iterations)
-                if isinstance(outputs, QuantTensor):
-                    batch_psnr =  psnr(label, outputs.tensor)
-                    batch_ssim =  ssim(label, outputs.tensor)
+                plot = True if(counter%30 == 0) else False
 
+                if isinstance(outputs, QuantTensor):
+                    batch_psnr =  psnr(label, outputs.tensor,printplots=False)
+                    batch_ssim =  ssim(label, outputs.tensor)
                 else:
-                    batch_psnr =  psnr(label, outputs)       
+                    batch_psnr =  psnr(label, outputs,printplots=False)       
                     batch_ssim =  ssim(label, outputs)                         
                 running_psnr += batch_psnr
                 running_ssim += batch_ssim
                 # print(running_ssim/(counter))
                 tk0.set_postfix({'loss': '[{:4f}]'.format(running_loss/(counter)),'psnr': '[{:4f}]'.format(running_psnr/(counter)),'ssim': '[{:4f}]'.format(running_ssim/(counter))}) 
                 # tk0.set_postfix({'loss': '[{:4f}]'.format(running_loss/(counter))})             
-
+        print(len(self.vdataset.dataset))
+        print(counter)
             # outputs = outputs.tensor.cpu()
             # save_image(outputs, f"outputs/val_sr{epoch}.png")
         final_loss = running_loss/len(self.vdataset.dataset)

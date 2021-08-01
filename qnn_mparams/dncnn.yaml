@@ -16,3 +16,5 @@ ENABLE_BIAS_QUANT : False # This is set to False, since 2021 FINN version does n
 # Specific dataset info
 crop_size: 50 # 32
 stride: 50 # 21
+padding: same
+method: bicubic

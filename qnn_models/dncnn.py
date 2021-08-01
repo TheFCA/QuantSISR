@@ -59,6 +59,17 @@ from qnn_utils.common import ReLUActQuant,HardTanhActQuant
 # from brevitas.core.quant import QuantType
 import yaml
 
+def QuantActivation(name):
+    # components = name.split('.')
+    mod = __import__('brevitas')
+    mod = getattr(mod, 'nn')
+    mod = getattr(mod, name)
+    if name == 'QuantHardTanh':
+        return mod,HardTanhActQuant
+    elif name == 'QuantReLU':
+        return mod, ReLUActQuant
+    return 
+
 class dncnn(nn.Module):
     def __init__(self, nbk=4,nba=4,**kwargs):
         #quantization bits for weigths, bias and activations
@@ -94,7 +105,7 @@ class dncnn(nn.Module):
             nlact = 8
         else:
             nlact = None
-
+        ActClass, quantizer = QuantActivation('QuantReLU') #QuantHardTanh
         bias_quant = Int8BiasQuant if self.ENABLE_BIAS_QUANT else FPBiasQuant
         return_quant_tensor = True if self.ENABLE_BIAS_QUANT else False
 
@@ -115,9 +126,9 @@ class dncnn(nn.Module):
             return_quant_tensor = return_quant_tensor)
             )
         self.layers.append(
-            qnn.QuantHardTanh(
+            ActClass(
             bit_width=self.nba,
-            act_quant = HardTanhActQuant,
+            act_quant = quantizer,
             return_quant_tensor = return_quant_tensor)
             )
         for _ in range(self.nlayers-2):
@@ -138,9 +149,9 @@ class dncnn(nn.Module):
             self.layers.append(nn.BatchNorm2d(num_features=self.features))
 
             self.layers.append(
-                qnn.QuantHardTanh(
+                ActClass(
                 bit_width=self.nba,
-                act_quant = HardTanhActQuant,
+                act_quant = quantizer,
                 return_quant_tensor = return_quant_tensor)
                 )
 

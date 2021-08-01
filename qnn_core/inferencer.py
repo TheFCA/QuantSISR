@@ -21,6 +21,8 @@ class Inferencer:
         self.device = params['device']
         self.scale = params['scale']
         self.params = params # for other params
+        self.method = params['method']
+
         if load:
             self._load() 
     
@@ -86,15 +88,20 @@ class Inferencer:
         # print (equal.all())
 
         Y_img = cv2.resize(img[:, :, 0], (shape[1] // self.scale, shape[0] // self.scale), interpolation=cv2.INTER_CUBIC) #, cv2.INTER_CUBIC
-        Y_img = cv2.resize(Y_img, (shape[1], shape[0]), interpolation=cv2.INTER_CUBIC) #, cv2.INTER_CUBIC
+        Y_img_to_save = cv2.resize(Y_img, (shape[1], shape[0]), interpolation=cv2.INTER_CUBIC) #, cv2.INTER_CUBIC
 
-        img[:, :, 0] = Y_img
+        if self.method != 'upsample':
+            Y_img = cv2.resize(Y_img, (shape[1], shape[0]), interpolation=cv2.INTER_CUBIC) #, cv2.INTER_CUBIC
+        
+        img[:, :, 0] = Y_img_to_save
         img = cv2.cvtColor(img, cv2.COLOR_YCrCb2BGR)
         cv2.imwrite(INPUT_NAME, img)
-
-        Y = np.zeros((1, img.shape[0], img.shape[1], 1), dtype=float)
-        Y[0, :, :, 0] = Y_img.astype(float) / 256.
-        
+        if self.method != 'upsample':
+            Y = np.zeros((1, img.shape[0], img.shape[1], 1), dtype=float)
+        else:
+            Y = np.zeros((1, img.shape[0]//self.scale, img.shape[1]//self.scale, 1), dtype=float)
+        Y[0, :, :, 0] = Y_img.astype(float)/ 256.
+       
         self.model.eval()
 
         Y_img = Y_img.astype('float32')/256.
@@ -111,7 +118,7 @@ class Inferencer:
             pre_torch2 = pre_torch.cpu().detach().numpy()
         pre = copy.deepcopy(pre_torch2) #my original
         
-        pre = pre * 256.
+        pre = pre* 256.
         pre[pre[:] > 255] = 255
         pre[pre[:] < 0] = 0
         pre = np.round(pre)
@@ -281,11 +288,43 @@ class Inferencer:
                 name = img_name[0].split("'")[1]
                 name = 'LR'+str(self.scale)+'_' + '_'.join(name.split('_')[1:])
                 imgLR = Image.fromarray(imgLR[0,0,:,:])
-                imgLR.convert('L').save(self.save_path+name,'PNG')                    
+                imgLR.convert('L').save(self.save_path+name,'PNG')             
+
+                imgHR = label.cpu().detach().numpy() * 256.
+                imgHR[imgHR[:] > 255] = 255
+                imgHR[imgHR[:] < 0] = 0
+                imgHR = imgHR.astype(np.uint8)
+
+                name = img_name[0].split("'")[1]
+                name = 'HR'+str(self.scale)+'_' + '_'.join(name.split('_')[1:])
+                imgHR = Image.fromarray(imgHR[0,0,:,:])
+                imgHR.convert('L').save(self.save_path+name,'PNG')                                    
                 # cv2.imwrite(self.save_path+name, img)
-
-
         return test_psnr, test_ssim, bi_psnr, bi_ssim, name_list
+
+    def infer_time(self,tstdataset):
+        self.tstdataset = tstdataset
+        self.model.eval()
+        max_val = 1 - 2**-8
+        start, end = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
+        timings = []
+        with torch.no_grad():
+            for rep in range(10):
+                tk0 = tqdm(enumerate(self.tstdataset), total=int(len(self.tstdataset.dataset)/self.tstdataset.batch_size),disable=self.params['Verbose'])
+                counter = 0
+                for _, data in tk0:
+                    image_data = data[0].to(self.device)
+                    start.record()
+
+                    if self.model.residual == True:
+                        outputs = torch.clamp(image_data+self.model(image_data), 0., max_val)
+                    else:
+                        outputs = self.model(image_data)            
+                    end.record()
+                    torch.cuda.synchronize()
+                    timings.append(start.elapsed_time(end))
+                    counter += 1
+        print('FPS median:', 1/float(np.median(timings))*1000,' mean: ', 1/float(np.mean(timings))*1000, ' std:', 1/float(np.std(timings)*1000))
 
     def infer_onnx(self): #TODO
         # https://github.com/Xilinx/finn/blob/master/notebooks/basics/0_how_to_work_with_onnx.ipynb

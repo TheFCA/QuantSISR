@@ -30,8 +30,13 @@ parser = argparse.ArgumentParser()
 parser.add_argument(
     '--model',
     type=str,
-    default='srdensenet',
+    default='srcnn',
     help='Select a model')
+parser.add_argument(
+    '--bias',
+    type=str,
+    default=None,
+    help='Activate bias')   
 parser.add_argument(
     '--nbk',
     type=int,
@@ -68,14 +73,9 @@ parser.add_argument(
     default='',
     help='Additional tag')   
 parser.add_argument(
-    '--bias',
-    type=str,
-    default=None,
-    help='Activate bias')   
-parser.add_argument(
     '--load',
     type=str,
-    default = 'True',
+    default = 'False',
     # default=None,
     help='Indicate path')   
 parser.add_argument(
@@ -88,11 +88,17 @@ parser.add_argument(
     type=str,
     default='QAT',
     help='Quant type: QAT or PTQ')   
+parser.add_argument(
+    '--seed',
+    type=int,
+    default=0,
+    help='Introduce a seed number')   
 
 flags, args = parser.parse_known_args()
 
 # Initialization of the seeds for reproducibility
-torch.manual_seed(0)
+#torch.manual_seed(0)
+torch.manual_seed(flags.seed)
 if DEBUG_GRAD == True:
     torch.autograd.set_detect_anomaly(True) # degrades a lot the performance
 # Check if there is any GPU available
@@ -140,9 +146,13 @@ params['nbk'] = nbk
 params['nba'] = nba
 
 # Training and Model parameters
-params['name'] = complete_name
+params['name']      = complete_name
+params['seed']      = flags.seed
 params['crop_size'] = model.crop_size
-params['stride'] = model.stride
+params['stride']    = model.stride
+params['padding']   = model.padding
+params['method']    = model.method
+
 
 params = PrepareParams(params)
 
@@ -168,14 +178,25 @@ if load_from_epoch is True:
 
 load = str2bool(flags.load)
 
-if (load):
-    load_file = sel_load_file(nbk,scale,complete_name) or '/NotAFile'
+#if (load):
+if (load is not None):
+    if  isinstance(load, bool):
+        if (load):
+            load_file = auto_sel_load_file(nbk,nba,scale,complete_name)
+        else:
+            load_file = '/NotAFile'
+    else:
+        load_file = manual_sel_load_file(load,scale) or '/NotAFile'
+
     if os.path.isfile(load_file):
         print ('loading file:', load)
         config.IGNORE_MISSING_KEYS = True
         trainer.load_pretrain(load_file)
     else:
-        print ('No file was found. Training from scratch.')
+        print ('No file was found. Training model from scratch.')
+else:
+    print ('No file to be loaded. Training model from scratch')
+
 # Train the network!
 start = time.time()
 # Here you can tuner your losses, optimizer, criterion
