@@ -97,7 +97,6 @@ parser.add_argument(
 flags, args = parser.parse_known_args()
 
 # Initialization of the seeds for reproducibility
-#torch.manual_seed(0)
 torch.manual_seed(flags.seed)
 if DEBUG_GRAD == True:
     torch.autograd.set_detect_anomaly(True) # degrades a lot the performance
@@ -109,9 +108,6 @@ scale= int(flags.scale)
 nbk=flags.nbk
 nba=flags.nba
 bias = str2bool(flags.bias)
-
-# nbk = 7
-# nba = 7
 
 # Checkpoints
 if flags.resume > 0:
