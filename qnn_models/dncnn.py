@@ -98,9 +98,11 @@ class dncnn(nn.Module):
         self.ENABLE_BIAS_QUANT = params['ENABLE_BIAS_QUANT']
         
         # Dataset parameters
-        self.crop_size = params ['crop_size']
-        self.stride = params ['stride']
-
+        self.crop_size  = params ['crop_size']
+        self.stride     = params ['stride']
+        self.padding    = params ['padding']
+        self.method     = params ['method']
+        
         if self.nba is not None: # Last Activation
             nlact = 8
         else:

@@ -35,9 +35,11 @@ class drrn(nn.Module):
         self.ENABLE_BIAS_QUANT = params['ENABLE_BIAS_QUANT']
         
         # Dataset parameters
-        self.crop_size = params ['crop_size']
-        self.stride = params ['stride']        
-        
+        self.crop_size  = params ['crop_size']
+        self.stride     = params ['stride']        
+        self.padding    = params ['padding']
+        self.method     = params ['method']
+
         self.quant = torch.quantization.QuantStub()
         self.dequant = torch.quantization.DeQuantStub()
         
