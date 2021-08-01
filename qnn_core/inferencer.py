@@ -89,13 +89,13 @@ class Inferencer:
 
         Y_img = cv2.resize(img[:, :, 0], (shape[1] // self.scale, shape[0] // self.scale), interpolation=cv2.INTER_CUBIC) #, cv2.INTER_CUBIC
         Y_img_to_save = cv2.resize(Y_img, (shape[1], shape[0]), interpolation=cv2.INTER_CUBIC) #, cv2.INTER_CUBIC
+        img[:, :, 0] = Y_img_to_save
+        img = cv2.cvtColor(img, cv2.COLOR_YCrCb2BGR)
+        cv2.imwrite(INPUT_NAME, img)
 
         if self.method != 'upsample':
             Y_img = cv2.resize(Y_img, (shape[1], shape[0]), interpolation=cv2.INTER_CUBIC) #, cv2.INTER_CUBIC
         
-        img[:, :, 0] = Y_img_to_save
-        img = cv2.cvtColor(img, cv2.COLOR_YCrCb2BGR)
-        cv2.imwrite(INPUT_NAME, img)
         if self.method != 'upsample':
             Y = np.zeros((1, img.shape[0], img.shape[1], 1), dtype=float)
         else:
@@ -256,10 +256,21 @@ class Inferencer:
                     test_psnr.append(psnr(label, outputs))
                     test_ssim.append(ssim(label, outputs))                  
                 # print(running_ssim/(counter))
-                ooutputs = outputs.cpu().detach().numpy()
+                #outputs = outputs.cpu().detach().numpy()
+
+                # bi_psnr.append(psnr(label,image_data))
+                # bi_ssim.append(ssim(label,image_data))
+                
+                # label.cpu().detach().numpy()
+                if self.params['method'] == 'upsample':
+                    img_lr = image_data.cpu().detach().numpy()
+                    image_data = cv2.resize(img_lr[0,0,:,:], (label.shape[-1], label.shape[-1]), interpolation=cv2.INTER_CUBIC) #, interpolation=cv2.INTER_CUBIC                
+                    image_data = np.expand_dims(image_data, axis=(1,0))
+                    image_data = torch.from_numpy(image_data).to(self.device)
 
                 bi_psnr.append(psnr(label,image_data))
                 bi_ssim.append(ssim(label,image_data))
+
 
                 tk0.set_postfix({'psnr': '[{:4f}]'.format(np.mean(test_psnr)),'ssim': '[{:4f}]'.format(np.mean(test_ssim)),
                 'psnr_bi': '[{:4f}]'.format(np.mean(bi_psnr)),'ssim_bi': '[{:4f}]'.format(np.mean(bi_ssim))}) 

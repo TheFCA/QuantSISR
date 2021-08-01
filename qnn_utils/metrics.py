@@ -154,7 +154,9 @@ def psnr(label_in, outputs_in, max_val=(1-2**-8),printplots=False, crop_metrics=
 	outputs[outputs[:] > 255] = 255
 	outputs[outputs[:] < 0] = 0
 	outputs = outputs/256.
+
 	img_diff = outputs - label
+	
 	if len(img_diff.shape)==4:
 		rmse = []
 		for i in range(img_diff.shape[0]):

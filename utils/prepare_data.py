@@ -434,20 +434,31 @@ class CreateDataset():
             print ("Invalid method was selected")
         write_hdf5(data_train, label_train, self.H5_PATH+"/crop_train_"+str(self.crop)+"_"+self.padding+"_"+self.method+"_x"+str(self.scale)+".h5")
         write_hdf5(data_val, label_val, self.H5_PATH+"/val_"+str(self.crop)+"_"+self.padding+"_"+self.method+"_x"+str(self.scale)+".h5")
+
         data, label, names = self.__prepare_test_data()
         write_hdf5(data, label, self.H5_PATH+"test_"+self.padding+"_"+self.method+"_x"+str(self.scale)+".h5", names)
         data, label = self.__prepare_calib_data()
         write_hdf5(data, label, self.H5_PATH+"calib_"+self.padding+"_"+self.method+"_x"+str(self.scale)+".h5")
+        
+
+
         # data, label = self.__prepare_calib_data()
         # write_hdf5(data, label, self.H5_PATH+"/calib_"+str(self.crop)+"_"+self.padding+"_"+self.method+"_x"+str(self.scale)+".h5")
     # _, _a = read_training_data("train.h5")
     # _, _a = read_training_data("test.h5")
 
 if __name__ == "__main__":
-    DatasetObj = CreateDataset()
+    params_partial = {}
+    params_partial['scale']     = 4
+    params_partial['crop_size'] = 96
+    params_partial['stride']    = 96
+    params_partial['method']    = 'upsample'
+    params_partial['padding']   = 'same'
+
+    DatasetObj = CreateDataset(params_partial)
     params = {}
-    params['scale'] = 2
-    params['crop_size'] = 40
-    params['stride'] = 40
+    params['scale'] = 4
+    params['crop_size'] = 96
+    params['stride'] = 96
     DatasetObj.override(params)
     DatasetObj.writeDataset()

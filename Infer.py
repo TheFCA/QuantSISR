@@ -123,9 +123,11 @@ params['nba'] = nba
 
 # Training and Model parameters
 # complete_name = model.name + flags.tag
-params['name'] = complete_name
+params['name']      = complete_name
 params['crop_size'] = model.crop_size
-params['stride'] = model.stride
+params['stride']    = model.stride
+params['padding']   = model.padding
+params['method']    = model.method
 
 params = PrepareParams(params)
 

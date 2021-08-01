@@ -15,7 +15,7 @@ ENABLE_BIAS       : False # This is set to False, since 2021 FINN version does n
 ENABLE_BIAS_QUANT : False # This is set to False, since 2021 FINN version does not support it correctly
 
 # Specific dataset info
-crop_size: 320 # 32
-stride: 320 # 21
+crop_size: 96 # 32
+stride: 96 # 21
 padding: same
 method: upsample
