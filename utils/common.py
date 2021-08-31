@@ -20,7 +20,8 @@ def PrepareParams(params_partial):
     nba = params_partial['nba']
     
     if params_partial['Training'] == 'QAT':
-        save_path = 'outputs/scale'+str(scale)+'/'+name+'_W'+str(nbk)+'A'+str(nba)
+        save_path = 'outputs/scale'+str(scale)+'/'+name+'_W'+str(nbk)+'A'+str(nba) #/
+        #save_path = 'outputs/scale'+str(scale)+'/Study2/'+name+'_W'+str(nbk)+'A'+str(nba)  # Este es solo para cuando están en carpetas de Study1/2/3
     else:
         save_path = 'outputs/scale'+str(scale)+'/'+name
 
@@ -64,7 +65,7 @@ def str2bool(value):
     return
     
 def auto_sel_load_file(nbk,nba,scale, name):
-    if nbk == 8 or nbk == None:
+    if (nbk == 8 or nbk == None) and (nba == 8 or nba == None):
         load_file = 'outputs/scale'+str(scale)+'/'+name+'_WNoneANone/'+name+'_WNoneANone_Best.pth'
         if (os.path.isfile(load_file)):
             print ('File: ',load_file, ' found and loaded.')
@@ -72,15 +73,30 @@ def auto_sel_load_file(nbk,nba,scale, name):
         else:
             print ('File: ',load_file, ' does not exist.')
     else:
-        max_nbk = np.clip(nbk+3,nbk,8)
-        for W in range(nbk+1,max_nbk+1):
-            for A in range(W,max_nbk+1):
-                load_file = 'outputs/scale'+str(scale)+'/'+name+'_W'+str(W)+'A'+str(A)+'/'+name+'_W'+str(W)+'A'+str(A)+'_Best.pth'
-                if (os.path.isfile(load_file)):
-                    print ('File: ',load_file, ' found and loaded.')                    
-                    return load_file
+        max_nbk = np.clip(nbk+3,nbk,8) # limit nbk/nba
+        max_nba = np.clip(nba+3,nba,8) # limit nbk/nba
+        range_nbk = range(nbk,max_nbk+1)
+        range_nba = range(nba,max_nba+1)
+
+        # if nbk == nba:
+        #     range_nbk = range(nbk,max_nbk+1)
+        #     range_nba = range(nbk+1,max_nbk+1)
+        # else:
+        #     range_nbk = range(nbk+1,max_nbk+1)
+        #     range_nba = range(nba,9)
+        for W in range_nbk:#range(nbk,max_nbk+1):
+            for A in range_nba: #range(W+1,max_nbk+1):
+                if (A ==nba) & (W ==nbk): # Avoid retrain the same one
+                    pass
                 else:
-                    print ('File: ',load_file, ' does not exist.')
+                    print ('W ', W,'A ', A)
+                    load_file = 'outputs/scale'+str(scale)+'/'+name+'_W'+str(W)+'A'+str(A)+'/'+name+'_W'+str(W)+'A'+str(A)+'_Best.pth'
+                    print(load_file)
+                    if (os.path.isfile(load_file)):
+                        print ('File: ',load_file, ' found and loaded.')                    
+                        return load_file
+                    else:
+                        print ('File: ',load_file, ' does not exist.')
 def manual_sel_load_file(name,scale):
     load_file = 'outputs/scale'+str(scale)+'/'+name+'/'+name+'_Best.pth'
     if (os.path.isfile(load_file)):

@@ -128,7 +128,7 @@ class srdensenet(nn.Module):
         self.num_blocks=params['num_blocks']
         self.num_layers=params['num_layers']       
         # Quantization parameters
-        self.ENABLE_BIAS = params['ENABLE_BIAS']
+        self.ENABLE_BIAS = kwargs['bias'] if (kwargs['bias'] is not None) else params['ENABLE_BIAS']
         self.ENABLE_BIAS_QUANT = params['ENABLE_BIAS']
         
         # Dataset parameters
@@ -175,17 +175,21 @@ class srdensenet(nn.Module):
 
         _initialize_weights(self)
     
-    def fuse_model(self):
-        #https://tutorials.pytorch.kr/advanced/static_quantization_tutorial.html
-        for m in self.modules():
-            if type(m) == ConvLayer:
-                torch.quantization.fuse_modules(m, ['conv_in','relu_in'], inplace=True)
-            if type(m) == DenseBlock:
-                for idx in range(len(m.block)):
-                    if type(m.block[idx]) == ConvLayer:
-                        torch.quantization.fuse_modules(m.block, ['conv_in','relu_in'], inplace=True)                        
-                    elif type(m.block[idx]) == DenseLayer:
-                        torch.quantization.fuse_modules(m.block, ['conv_in','relu_in'], inplace=True)
+    def fuse_modules(self):
+        pass
+        # #https://tutorials.pytorch.kr/advanced/static_quantization_tutorial.html
+        # for m in self.modules():
+        #     if type(m) == ConvLayer:
+        #         torch.quantization.fuse_modules(m, ['conv_in','relu_in'], inplace=True)
+        #     if type(m) == DenseBlock:
+        #         for idx in range(len(m.block)):
+        #             if type(m.block[idx]) == ConvLayer:
+        #                 # torch.quantization.fuse_modules(m.block, ['conv_in','relu_in'], inplace=True)                        
+        #                 torch.quantization.fuse_modules(m.block, [str(idx), str(idx + 1)], inplace=True)                        
+
+        #             elif type(m.block[idx]) == DenseLayer:
+        #                 torch.quantization.fuse_modules(m.block, [str(idx), str(idx + 1)], inplace=True)      
+        #                 # torch.quantization.fuse_modules(m.block, ['conv_in','relu_in'], inplace=True)
     def forward(self, x):
         x = self.quant(x)
         x = self.conv(x)

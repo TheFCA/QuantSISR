@@ -94,7 +94,7 @@ class dncnn(nn.Module):
         self.features = params['features']
         self.GNoise = params['GNoise']
         # Quantization parameters
-        self.ENABLE_BIAS = params['ENABLE_BIAS']
+        self.ENABLE_BIAS = kwargs['bias'] if (kwargs['bias'] is not None) else params['ENABLE_BIAS']
         self.ENABLE_BIAS_QUANT = params['ENABLE_BIAS_QUANT']
         
         # Dataset parameters
@@ -121,6 +121,7 @@ class dncnn(nn.Module):
             kernel_size         = 3,
             padding             = 3//2,
             weight_bit_width    = self.nbk,
+            # weight_bit_width    = 8,            
             weight_quant        = IntWeightQuant,
             bias                = self.ENABLE_BIAS,
             enable_bias_quant   = self.ENABLE_BIAS_QUANT,
@@ -130,6 +131,7 @@ class dncnn(nn.Module):
         self.layers.append(
             ActClass(
             bit_width=self.nba,
+            # bit_width=8,
             act_quant = quantizer,
             return_quant_tensor = return_quant_tensor)
             )
@@ -143,7 +145,7 @@ class dncnn(nn.Module):
                 padding             = 3//2,
                 weight_bit_width    = self.nbk,
                 weight_quant        = IntWeightQuant,
-                bias                = self.ENABLE_BIAS,
+                bias                = False, # https://github.com/cszn/DnCNN/blob/8b61f7e23a68180f5f27002539d745256bd86df2/TrainingCodes/dncnn_pytorch/main_test.py
                 enable_bias_quant   = self.ENABLE_BIAS_QUANT,
                 bias_quant          = bias_quant,
                 return_quant_tensor = return_quant_tensor)
@@ -163,10 +165,10 @@ class dncnn(nn.Module):
                 out_channels        = 1, 
                 kernel_size         = 3,
                 padding             = 3//2,
-                # weight_bit_width    = self.nbk,
-                weight_bit_width    = 8,
+                weight_bit_width    = self.nbk,
+                # weight_bit_width    = 8,
                 weight_quant        = IntWeightQuant,
-                bias                = self.ENABLE_BIAS,
+                bias                = False, #https://github.com/cszn/DnCNN/blob/8b61f7e23a68180f5f27002539d745256bd86df2/TrainingCodes/dncnn_pytorch/main_test.py
                 enable_bias_quant   = self.ENABLE_BIAS_QUANT,
                 bias_quant          = bias_quant,
                 return_quant_tensor = return_quant_tensor)

@@ -74,14 +74,37 @@ class SRDataLoader():
 
     def load(self,datapath):
         if os.path.isfile(datapath) == False:
-            print("Dataset file does not exist. Generating one (might take some minutes)")
+
+            print(datapath.split('/')[-1] + " dataset file does not exist. Generating one (might take some minutes)")
             DatasetObj = CreateDataset(self.params)
             DatasetObj.override(self.params) # we expect scale, crop_size and stride
             DatasetObj.writeDataset()
-        file = h5py.File(datapath,mode='r')
 
-        inputs = file['data'][:].astype('float32')*255.0/256.0 # the training data, .astype('int') float32
-        labels = file['label'][:].astype('float32')*255.0/256.0 # the training labels
+        if self.params['name'].find("NEVER") != -1: # This is not working as expected with DRRN
+            datapath = '_'.join(datapath.split('.')[0].split('_')[0:-1])+'_x'+str(2)+'.h5'
+            file = h5py.File(datapath,mode='r')
+            inputs = file['data'][:].astype('float32')*255.0/256.0 # the training data, .astype('int') float32
+            rng = np.random.RandomState(0) # for repeatibility
+            sel_figs = rng.choice(inputs.shape[0], size=inputs.shape[0]//3, replace=False)
+            inputs = inputs[sel_figs,...]
+            labels = file['label'][:].astype('float32')*255.0/256.0 # the training labels
+            labels = labels[sel_figs,...]
+            print(len(sel_figs))
+            for scale in [3,4]:
+                datapath = '_'.join(datapath.split('.')[0].split('_')[0:-1])+'_x'+str(scale)+'.h5'
+                file = h5py.File(datapath,mode='r')
+                i = file['data'][:].astype('float32')*255.0/256.0 # the training data, .astype('int') float32
+                sel_figs = rng.choice(i.shape[0], size=i.shape[0]//3, replace=False)
+                #i = i[0:i.shape[0]//3,...]
+                i = i[sel_figs,...]
+                l = file['label'][:].astype('float32')*255.0/256.0 # the training labels
+                l = l[sel_figs,...]
+                inputs = np.concatenate((inputs,i),axis=0)
+                labels = np.concatenate((labels,l),axis=0)
+        else:
+            file = h5py.File(datapath,mode='r')
+            inputs = file['data'][:].astype('float32')*255.0/256.0 # the training data, .astype('int') float32
+            labels = file['label'][:].astype('float32')*255.0/256.0 # the training labels
         
         if self.img_mode == 'RGB': # Extract Y
             for idx in range(inputs.shape[0]):

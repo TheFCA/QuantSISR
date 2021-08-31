@@ -83,6 +83,28 @@ class CommonWeightQuantPos(WeightQuantSolver):
     scaling_min_val   = 2e-16
 from brevitas.quant.base import IntQuant
 from brevitas.core.function_wrapper import TensorClamp
+
+class IntBiasQuant(IntQuant, BiasQuantSolver):
+    quant_type = QuantType.INT # BINARY/TERNARY is not supported for bias by Brevitas, also binary weights + bias does not work.
+
+    requires_input_bit_width    = False
+    requires_input_scale        = True
+    tensor_clamp_impl           = TensorClamp
+
+    # float_to_int_impl_type      = FloatToIntImplType.ROUND
+    # restrict_scaling_type       = RestrictValueType.FP #FP
+    # scaling_const               = 1.0
+    # bit_width_impl_type         = BitWidthImplType.CONST #const
+    # scaling_impl_type           = ScalingImplType.PARAMETER#PARAMETER #const
+    # narrow_range                = True
+    # signed                      = True
+    # scaling_per_output_channel  = False
+    # zero_point_impl             = ZeroZeroPoint
+    # scaling_min_val             = 2e-32
+    # quant_type                  = QuantType.INT
+    # max_val                     = 2**(bit_width-1)
+
+
 class Int8BiasQuant(IntQuant, BiasQuantSolver):
     bit_width                   = 8
     requires_input_bit_width    = False
@@ -269,3 +291,20 @@ class CommonActQuant(ActQuantSolver):
     # signed = False
     # min_val = -1.0
     # max_val = 1.0
+
+class QIndentityActQuant(ActQuantSolver):
+    # This Quantizer is for input quantization
+    # It is useful to quantize float input tensors
+    # or quantize bias (this requires input Quantensor because the scaling factor)
+    MAX_VAL = (2**8-1)/256
+    MIN_VAL = 0
+    quant_type              = QuantType.INT
+    scaling_impl_type       = ScalingImplType.CONST
+    restrict_scaling_type   = RestrictValueType.POWER_OF_TWO
+    bit_width_impl_type     = BitWidthImplType.CONST
+    narrow_range            = False
+    signed                  = False
+    float_to_int_impl_type  = FloatToIntImplType.ROUND
+    zero_point_impl         = ZeroZeroPoint
+    max_val                 = MAX_VAL
+    min_val                 = MIN_VAL

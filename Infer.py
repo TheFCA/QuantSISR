@@ -68,6 +68,11 @@ parser.add_argument(
     default=None,
     help='GPU or CPU')  
 parser.add_argument(
+    '--study',
+    type=str,
+    default='Study',
+    help='Study')   
+parser.add_argument(
     '--quant',
     type=str,
     default='QAT',
@@ -99,7 +104,6 @@ params = {}
 params['Training'] = flags.quant
 
 # Create model and move to device : {gpu or cpu}
-
 if params['Training'] == 'QAT':
     modelClass = importModelClass('qnn_models.'+flags.model)
     model = modelClass(nbk=nbk,nba=nba,bias=bias)
@@ -112,7 +116,7 @@ else:
 # modelClass = importModelClass('qnn_models.'+flags.model)
 
 model = modelClass(nbk=nbk,nba=nba,bias=bias)
-
+# device = 'cpu'
 model.to(device)
 
 # General parameters
@@ -142,7 +146,7 @@ test_loader, cal_loader = DataLoader(Train=False,Test=True)
 # Create Trainer object
 inferencer = Inferencer(model,params, load=True)
 if params['Training'] == 'PTQ':
-    inferencer.calibration(cal_loader)
+    inferencer.calibration(cal_loader) #cal_loader
     inferencer.device = 'cpu'
 
 # if (load):
@@ -154,15 +158,18 @@ if params['Training'] == 'PTQ':
 #     else:
 #         print ('No file was found. Training from scratch.')
 
-infer_type = 'Metrics'
-# inferencer.monitor()
+infer_type = 'Metrics' # 'Metrics' or 'Time'
+
 if infer_type == 'Metrics':
     test_psnr, test_ssim, bi_psnr, bi_ssim, name_list = inferencer.infer(test_loader)
     with open(inferencer.save_path+'Results_'+ model.name+'_W'+str(nbk)+'A'+str(nba) +'.csv', 'wb') as f:
         f.write(b'IMAGEN, PSNR(bi), SSIM(bi), PSNR(Test), SSIM(Test)\n')
         np.savetxt(f, np.c_[name_list, bi_psnr, bi_ssim, test_psnr, test_ssim], delimiter=',', fmt='%s') #"%s"
 elif infer_type == 'Time':
-    inferencer.infer_time(test_loader)
-    #f.write(bytes("SP,"+lists+"\n","UTF-8"))
-  #Used this line for a variable list of numbers
+    with open(params['output_path']+'Results_'+ model.name+'_W'+str(nbk)+'A'+str(nba) +'_'+inferencer.device+'.csv', 'wb') as f:
+        f.write(b'FPS\n')
+        for ii in range(50):
+            fps_mean = inferencer.infer_time(test_loader)
+            np.savetxt(f, [fps_mean], delimiter=',', fmt='%s') #"%s"
+
     

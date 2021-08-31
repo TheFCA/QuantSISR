@@ -2,7 +2,7 @@
 
 # Training parameters
 lr : 1.0e-4 #1.0e-4
-batch_size: 64
+batch_size: 1
 
 # Model parameters
 RESIDUAL: False

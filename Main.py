@@ -89,6 +89,41 @@ parser.add_argument(
     default='QAT',
     help='Quant type: QAT or PTQ')   
 parser.add_argument(
+    '--weight_decay',
+    type=float,
+    default=None,
+    help='Introduce a weight_decay for the optimizer')   
+parser.add_argument(
+    '--EarlyStopE',
+    type=int,
+    default=None,
+    help='Introduce a Early Stop number of epochs')   
+parser.add_argument(
+    '--EarlyDelta',
+    type=float,
+    default=None,
+    help='Introduce a EarlyDelta fvalue for the Early Stop module')   
+parser.add_argument(
+    '--LRSchedPat',
+    type=int,
+    default=None,
+    help='Introduce a learning rate patience value for the scheduler')   
+parser.add_argument(
+    '--LRSchedFac',
+    type=float,
+    default=None,
+    help='Introduce a learning rate reduction factor for the scheduler')               
+parser.add_argument(
+    '--LRSchedFacFunc',
+    type=str,
+    default=None,
+    help='Introduce a function to be applied to the learning rate reduction factor: none, sqrt, cbrt, power2 or power3')    
+parser.add_argument(
+    '--LRfind',
+    type=str,
+    default='False',
+    help='Introduce a seed number')
+parser.add_argument(
     '--seed',
     type=int,
     default=0,
@@ -142,20 +177,29 @@ params['nbk'] = nbk
 params['nba'] = nba
 
 # Training and Model parameters
-params['name']      = complete_name
+if flags.seed != 0:
+    params['name']      = complete_name + '_seed_' + str(flags.seed)
+else:    
+    params['name']      = complete_name
 params['seed']      = flags.seed
 params['crop_size'] = model.crop_size
 params['stride']    = model.stride
 params['padding']   = model.padding
 params['method']    = model.method
 
-
 params = PrepareParams(params)
 
 # Override other parameters
 params['lr'] = model.lr if flags.lr is None else flags.lr
 params['batch_size'] = model.batch_size if flags.batch_size is None else flags.batch_size
+params['LRrangetest'] = str2bool(flags.LRfind)
 if flags.epochs is not None: params['epochs'] = flags.epochs
+if flags.weight_decay is not None: params['weight_decay'] = flags.weight_decay
+if flags.EarlyStopE is not None: params['EarlyStopE'] = flags.EarlyStopE
+if flags.EarlyDelta is not None: params['EarlyDelta'] = flags.EarlyDelta
+if flags.LRSchedPat is not None: params['LRSchedPat'] = flags.LRSchedPat
+if flags.LRSchedFac is not None: params['LRSchedFac'] = flags.LRSchedFac
+if flags.LRSchedFacFunc is not None: params['LRSchedFacFunc'] = flags.LRSchedFacFunc
 
 # Gaussian Noise
 if hasattr(model,'GNoise'): params['GNoise'] = model.GNoise
@@ -172,6 +216,10 @@ if load_from_epoch is True:
     trainer.load_checkpoint()
 
 
+model_parameters = filter(lambda p: p.requires_grad, model.parameters())
+n_params = sum([np.prod(p.size()) for p in model_parameters])
+print ('Number of trainable params: ', n_params)
+
 load = str2bool(flags.load)
 
 #if (load):
@@ -182,8 +230,8 @@ if (load is not None):
         else:
             load_file = '/NotAFile'
     else:
-        load_file = manual_sel_load_file(load,scale) or '/NotAFile'
-
+        load_file = manual_sel_load_file(load,scale) 
+    load_file = "/NotAFile" if load_file ==None else load_file
     if os.path.isfile(load_file):
         print ('loading file:', load)
         config.IGNORE_MISSING_KEYS = True

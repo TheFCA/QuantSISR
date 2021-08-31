@@ -31,7 +31,7 @@ class drrn(nn.Module):
         self.residual = params['RESIDUAL']
         
         # Quantization parameters
-        self.ENABLE_BIAS = params['ENABLE_BIAS']
+        self.ENABLE_BIAS = kwargs['bias'] if (kwargs['bias'] is not None) else params['ENABLE_BIAS']
         self.ENABLE_BIAS_QUANT = params['ENABLE_BIAS_QUANT']
         
         # Dataset parameters

@@ -22,7 +22,10 @@ class Printer():
         self.bi_ssim = []
         self.out_ssim = []     
         self.lr_rate = []   
-    def __call__(self,model,optimizer,tloss,vloss,tpsnr,vpsnr,tssim,vssim,lr,epoch,bi_psnr,out_psnr):
+        self.lr_range = []
+        self.loss_range = []
+        if 'LRrangetest' in params: self.LRrangetest = params['LRrangetest']
+    def __call__(self,model,optimizer,tloss,vloss,tpsnr,vpsnr,tssim,vssim,lr,epoch,bi_psnr,out_psnr,lr_range,loss_range):
         # loss plots
         torch.save({
             'epoch': epoch,
@@ -55,6 +58,8 @@ class Printer():
         self.lr_rate.append(lr)
         self.bi_psnr.append(bi_psnr)
         self.out_psnr.append(out_psnr)         
+        self.lr_range= self.lr_range + lr_range
+        self.loss_range = self.loss_range + loss_range
         np.savetxt(self.path+'/MetricsTrain'+self.id+'.csv', np.c_[self.train_loss, self.train_psnr, self.train_ssim, self.lr_rate], delimiter=",")
         np.savetxt(self.path+'/MetricsVal'+self.id+'.csv', np.c_[self.val_loss, self.val_psnr, self.val_ssim, self.lr_rate], delimiter=",")
 
@@ -63,3 +68,6 @@ class Printer():
 
         # np.savetxt(self.path+'/learningRate'+self.id+'.csv', self.lr_rate, delimiter=",")
         np.savetxt(self.path+'/monitor'+self.id+'.csv', np.c_[self.bi_psnr,self.out_psnr], delimiter=",")        
+        if self.LRrangetest==True:
+            np.savetxt(self.path+'/LR_test'+self.id+'.csv', np.c_[self.lr_range,self.loss_range], delimiter=",")
+

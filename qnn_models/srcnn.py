@@ -4,6 +4,7 @@
 # fernando.carrio@uma.es/@cern.es/@uv.es/@ific.uv.es
 #######################################################
 
+from brevitas.core import bit_width
 import torch
 import torch.nn as nn
 
@@ -13,9 +14,11 @@ import brevitas.nn as qnn
 ##  weights
 from qnn_utils.common import IntWeightQuant
 ##  Bias
-from qnn_utils.common import Int8BiasQuant,FPBiasQuant
+from qnn_utils.common import Int8BiasQuant,FPBiasQuant,IntBiasQuant
 ##  Activations
-from qnn_utils.common import ReLUActQuant, HardTanhActQuant
+from qnn_utils.common import ReLUActQuant, HardTanhActQuant, QIndentityActQuant
+
+from brevitas.quant import IntBias,Uint8ActPerTensorFloat
 
 # from brevitas.core.quant import QuantType
 import yaml
@@ -63,25 +66,36 @@ class srcnn(nn.Module):
         self.stride = params ['stride']
         self.padding    = params ['padding']
         self.method     = params ['method']
-        
+
         if self.nba is not None: # Last Activation
             nlact = 8
         else:
             nlact = None
 
-        bias_quant = Int8BiasQuant if self.ENABLE_BIAS_QUANT else FPBiasQuant
+        bias_quant = IntBiasQuant if self.ENABLE_BIAS_QUANT else FPBiasQuant
+        # bias_quant = IntBias if self.ENABLE_BIAS_QUANT else FPBiasQuant
         return_quant_tensor = True if self.ENABLE_BIAS_QUANT else False
+        # print(self.ENABLE_BIAS)
+        # print(self.ENABLE_BIAS_QUANT)
+        # self.input = qnn.QuantIdentity(
+        #     bit_width = 8,
+        #     act_quant=QIndentityActQuant,
+        #     return_quant_tensor=True)
 
         self.conv1 = qnn.QuantConv2d(
             in_channels         = self.IC[0],
             out_channels        = self.OC[0], 
             kernel_size         = self.KS[0],
             padding             = self.KS[0]//2,
-            weight_bit_width    = self.nbk,
+            # weight_bit_width    = 8,
+           weight_bit_width    = self.nbk,
             weight_quant        = IntWeightQuant,
             bias                = self.ENABLE_BIAS,
             enable_bias_quant   = self.ENABLE_BIAS_QUANT,
+            bias_bit_width      = self.nbk,
             bias_quant          = bias_quant,
+            
+
             # bias_quant_type     = QuantType.FP,
                      
             return_quant_tensor = return_quant_tensor
@@ -90,7 +104,8 @@ class srcnn(nn.Module):
         # self.relu1 = qnn.QuantHardTanh(
         ActClass, quantizer = QuantActivation('QuantReLU') #'QuantHardTanh'
         self.relu1 = ActClass(
-            bit_width=self.nba,
+           bit_width=self.nba,
+            # bit_width=8,
             act_quant = quantizer,
             return_quant_tensor = return_quant_tensor
             )
@@ -104,6 +119,7 @@ class srcnn(nn.Module):
             weight_quant        = IntWeightQuant,
             bias                = self.ENABLE_BIAS,
             enable_bias_quant   = self.ENABLE_BIAS_QUANT,
+            bias_bit_width      = self.nbk,            
             bias_quant          = bias_quant,#CommonBiasQuant,
             # bias_quant_type     = QuantType.FP,            
             return_quant_tensor = return_quant_tensor
@@ -121,10 +137,12 @@ class srcnn(nn.Module):
             out_channels        = self.OC[2], 
             kernel_size         = self.KS[2],
             padding             = self.KS[2]//2,            
-            weight_bit_width    = self.nbk,
+            # weight_bit_width    = self.nbk,
+            weight_bit_width    = nlact,
             weight_quant        = IntWeightQuant,
             bias                = self.ENABLE_BIAS,
             enable_bias_quant   = self.ENABLE_BIAS_QUANT,
+            bias_bit_width      = self.nbk,            
             bias_quant          = bias_quant,            
             # bias_quant_type     = QuantType.FP,
             return_quant_tensor = return_quant_tensor
@@ -155,6 +173,7 @@ class srcnn(nn.Module):
                 torch.nn.init.zeros_(m.bias)        
 
     def forward(self, x):
+        # x = self.input(x)
         x = self.relu1(self.conv1(x))
         x = self.relu2(self.conv2(x))
         x = self.relu3(self.conv3(x))

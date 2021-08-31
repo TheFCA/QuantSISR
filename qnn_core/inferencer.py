@@ -32,14 +32,16 @@ class Inferencer:
             load_file = torch.load(cpath+'_Best.pth')
         else:
             load_file = torch.load(cpath+"_"+'{:03d}'.format(self.params['checkepoch'])+'.pth')
-        self.model.load_state_dict(load_file['model_state_dict'])
+        self.model.load_state_dict(load_file['model_state_dict'],strict=False)
 
 
     def calibration(self,caldataset):
         # PTQ Case, be aware it should run on CPU#
         self.caldataset = caldataset
-        # self.model.qconfig = torch.quantization.default_qconfig
+        # self.model.qconfig = torch.quantization.default_qconfig 
         self.model.qconfig = torch.quantization.get_default_qconfig('fbgemm')
+        # torch.backends.quantized.engine = 'qnnpack'
+        # self.model.qconfig = torch.quantization.get_default_qconfig('qnnpack')
         self.model.fuse_modules()
         torch.quantization.prepare(self.model, inplace=True)
         self.model.eval()
@@ -51,7 +53,7 @@ class Inferencer:
         with torch.no_grad():
             tk0 = tqdm(enumerate(self.caldataset), total=int(len(self.caldataset.dataset)/self.caldataset.batch_size),disable=self.params['Verbose'])
             counter = 0
-            for bi, data in tk0:
+            for _, data in tk0:
                 image_data = data[0].to(self.device)
                 label = data[1].to(self.device)
                 if self.model.residual == True:
@@ -75,17 +77,14 @@ class Inferencer:
         torch.quantization.convert(self.model, inplace=True)
 
     def monitor(self):
-        IMG_NAME = self.mon_img #"/mnt/0eafdae2-1d8c-43b3-aa1a-2eac4df4bfc5/data/qfastMRI/Val/HR_file1000033_25_CORPD_FBK.png"
+        IMG_NAME = self.mon_img 
         INPUT_NAME = "Input.png"
         OUTPUT_NAME = "Output.png"
         img = cv2.imread(IMG_NAME, cv2.IMREAD_COLOR)
         cv2.imwrite("Original.png", img)
 
-        # img2 = copy.deepcopy(img) #my original
         img = cv2.cvtColor(img, cv2.COLOR_BGR2YCrCb)
         shape = img.shape
-        # equal = img[:,:,0] == img2[:,:,0]
-        # print (equal.all())
 
         Y_img = cv2.resize(img[:, :, 0], (shape[1] // self.scale, shape[0] // self.scale), interpolation=cv2.INTER_CUBIC) #, cv2.INTER_CUBIC
         Y_img_to_save = cv2.resize(Y_img, (shape[1], shape[0]), interpolation=cv2.INTER_CUBIC) #, cv2.INTER_CUBIC
@@ -320,7 +319,7 @@ class Inferencer:
         start, end = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
         timings = []
         with torch.no_grad():
-            for rep in range(10):
+            for rep in range(1):
                 tk0 = tqdm(enumerate(self.tstdataset), total=int(len(self.tstdataset.dataset)/self.tstdataset.batch_size),disable=self.params['Verbose'])
                 counter = 0
                 for _, data in tk0:
@@ -335,8 +334,9 @@ class Inferencer:
                     torch.cuda.synchronize()
                     timings.append(start.elapsed_time(end))
                     counter += 1
+        fps_mean = 1/float(np.mean(timings))*1000
         print('FPS median:', 1/float(np.median(timings))*1000,' mean: ', 1/float(np.mean(timings))*1000, ' std:', 1/float(np.std(timings)*1000))
-
+        return fps_mean
     def infer_onnx(self): #TODO
         # https://github.com/Xilinx/finn/blob/master/notebooks/basics/0_how_to_work_with_onnx.ipynb
         pass

@@ -30,9 +30,18 @@ with open('qnn_mparams/'+NAME+'.yaml',mode='r') as file:
     params = yaml.load(file, Loader=yaml.FullLoader)
 params      = {**params}
 
-
-# bias_quant = Int8BiasQuant if ENABLE_BIAS_QUANT else FPBiasQuant
-# return_quant_tensor = True if ENABLE_BIAS_QUANT else False
+def QuantActivation(name):
+    # components = name.split('.')
+    mod = __import__('brevitas')
+    mod = getattr(mod, 'nn')
+    mod = getattr(mod, name)
+    if name == 'QuantHardTanh':
+        return mod,HardTanhActQuant
+    elif name == 'QuantReLU':
+        return mod, ReLUActQuant
+    return 
+Activ = 'QuantReLU' # 'QuantReLU' or 'QuantHardTanh'
+ActClass, quantizer = QuantActivation(Activ) #
 
 class ConvLayer(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size,bit_width,act_width,ENABLE_BIAS,ENABLE_BIAS_QUANT):
@@ -53,9 +62,9 @@ class ConvLayer(nn.Module):
                         bias_quant          = bias_quant,            
                         return_quant_tensor = return_quant_tensor
                         )      
-        self.relu_in =  qnn.QuantReLU(
+        self.relu_in =  ActClass(
                         bit_width           = act_width,
-                        act_quant           = ReLUActQuant,
+                        act_quant           = quantizer,
                         return_quant_tensor = return_quant_tensor
                         )
         _initialize_weights(self)
@@ -83,9 +92,9 @@ class DenseLayer(nn.Module):
                         bias_quant          = bias_quant,            
                         return_quant_tensor = return_quant_tensor
                         )            
-        self.relu_in =  qnn.QuantReLU(
+        self.relu_in =  ActClass(
                         bit_width           = act_width,
-                        act_quant           = ReLUActQuant,
+                        act_quant           = quantizer,
                         return_quant_tensor = return_quant_tensor)
 
         _initialize_weights(self)    
@@ -141,9 +150,9 @@ class DeConv(nn.Module):
                         bias_quant          = bias_quant,            
                         return_quant_tensor = return_quant_tensor
                         )           
-        self.relu1  =   qnn.QuantReLU(
+        self.relu1  =   ActClass(
                         bit_width           = act_width,
-                        act_quant           = ReLUActQuant,
+                        act_quant           = quantizer,
                         return_quant_tensor = return_quant_tensor)
 
         self.convT2 =   qnn.QuantConvTranspose2d(
@@ -160,9 +169,9 @@ class DeConv(nn.Module):
                         bias_quant          = bias_quant,            
                         return_quant_tensor = return_quant_tensor
                         )         
-        self.relu2  =  qnn.QuantReLU(
+        self.relu2  =   ActClass(
                         bit_width           = act_width,
-                        act_quant           = ReLUActQuant,
+                        act_quant           = quantizer,
                         return_quant_tensor = return_quant_tensor)
 
         _initialize_weights(self)    
@@ -192,7 +201,9 @@ class srdensenet(nn.Module):
         self.num_blocks=params['num_blocks']
         self.num_layers=params['num_layers']       
         # Quantization parameters
-        self.ENABLE_BIAS = params['ENABLE_BIAS']
+        self.ENABLE_BIAS = kwargs['bias'] if (kwargs['bias'] is not None) else params['ENABLE_BIAS']
+
+        # self.ENABLE_BIAS = params['ENABLE_BIAS']
         self.ENABLE_BIAS_QUANT = params['ENABLE_BIAS']
         
         # Dataset parameters
@@ -210,6 +221,7 @@ class srdensenet(nn.Module):
         return_quant_tensor = True if self.ENABLE_BIAS_QUANT else False  
 
         # low level features
+        # self.conv = ConvLayer(1, self.growth_rate * self.num_layers, 3,bit_width=8,act_width=8, ENABLE_BIAS=self.ENABLE_BIAS, ENABLE_BIAS_QUANT=self.ENABLE_BIAS_QUANT)
         self.conv = ConvLayer(1, self.growth_rate * self.num_layers, 3,bit_width=self.nbk,act_width=self.nba, ENABLE_BIAS=self.ENABLE_BIAS, ENABLE_BIAS_QUANT=self.ENABLE_BIAS_QUANT)
         
         # high level features
@@ -250,8 +262,7 @@ class srdensenet(nn.Module):
                                 out_channels        = 1, 
                                 kernel_size         = 3,
                                 padding             = 3//2,            
-                                # weight_bit_width    = self.nbk,
-                                weight_bit_width    = 8,
+                                weight_bit_width    = nlact,
                                 weight_quant        = IntWeightQuant,
                                 bias                = self.ENABLE_BIAS,
                                 enable_bias_quant   = self.ENABLE_BIAS_QUANT,
@@ -260,22 +271,6 @@ class srdensenet(nn.Module):
                                 )            
 
         _initialize_weights(self)
-
-    # def _make_DenseBlock(self,in_channels,growth_rate, num_layers,bit_width,act_width,ENABLE_BIAS,ENABLE_BIAS_QUANT):
-    #     layers = []
-    #     for i in range(int(num_layers)):
-    #         layers.append(
-    #             DenseLayer(
-    #                 in_channels, 
-    #                 growth_rate,
-    #                 kernel_size=3,
-    #                 bit_width=bit_width,
-    #                 act_width=act_width,
-    #                 ENABLE_BIAS = ENABLE_BIAS,
-    #                 ENABLE_BIAS_QUANT = ENABLE_BIAS_QUANT)
-    #             )
-    #         in_channels += growth_rate
-    #     return nn.Sequential(*layers)
 
     def clip_weights(self, min_val, max_val):
         for mod in self.modules():

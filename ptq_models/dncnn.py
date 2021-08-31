@@ -26,7 +26,7 @@ class dncnn(nn.Module):
         self.features = params['features']
         self.GNoise = params['GNoise']
         # Quantization parameters
-        self.ENABLE_BIAS = params['ENABLE_BIAS']
+        self.ENABLE_BIAS = kwargs['bias'] if (kwargs['bias'] is not None) else params['ENABLE_BIAS']
         self.ENABLE_BIAS_QUANT = params['ENABLE_BIAS_QUANT']
         
         # Dataset parameters
@@ -81,11 +81,14 @@ class dncnn(nn.Module):
 
     def fuse_modules(self):
         for m in self.modules():
-            for idx in range(len(m.dncnn)):
-                if idx == 1:
-                    torch.quantization.fuse_modules(m.dncnn, ['0','1'],  inplace=True)
-                elif type(m.dncnn[idx]) == nn.Conv2d:
-                    torch.quantization.fuse_modules(m.dncnn, [str(idx), str(idx + 1), str(idx + 2)],  inplace=True)         
+            if type(m)== self.dncnn:
+                for idx in range(len(m.dncnn)):
+                    if idx == 0:
+                        torch.quantization.fuse_modules(m.dncnn, ['0','1'],  inplace=True)
+                    elif idx == 56:
+                        pass # This is the last layer, nothing to merge
+                    elif type(m.dncnn[idx]) == nn.Conv2d:
+                        torch.quantization.fuse_modules(m.dncnn, [str(idx), str(idx + 1), str(idx + 2)],  inplace=True)         
     # def fuse_model(self):
     #     for m in self.modules():
     #         if isinstance(m,nn.ReLU):

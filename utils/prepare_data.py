@@ -420,8 +420,8 @@ class CreateDataset():
             lr_img = cv2.resize(hr_img, (shape[1] // self.scale, shape[0] // self.scale), interpolation=cv2.INTER_CUBIC) #, interpolation=cv2.INTER_CUBIC
             if self.method == 'bicubic':
                 lr_img = cv2.resize(lr_img, (shape[1], shape[0]), interpolation=cv2.INTER_CUBIC) #, interpolation=cv2.INTER_CUBIC
-            data[i, :, :]   = lr_img
-            label[i, :, :]  = hr_img
+            data[i, :, :]   = lr_img.astype(float) / 255.
+            label[i, :, :]  = hr_img.astype(float) / 255.
         return data, label
     def writeDataset(self):
         if self.method == 'bicubic':
@@ -430,11 +430,24 @@ class CreateDataset():
         elif self.method == 'upsample':
             data_train, label_train = self.__prepare_train_data_upsample()
             data_val, label_val = self.__prepare_val_data_upsample()
+        # elif self.method == 'bicubic_multi':
+        #     self.scale = 2            
+        #     data_train2, label_train2 = self.__prepare_train_data()
+        #     # data_val2, label_val2 = self.__prepare_val_data()
+        #     self.scale = 3            
+        #     data_train3, label_train3 = self.__prepare_train_data()
+        #     # data_val3, label_val3 = self.__prepare_val_data()
+        #     self.scale = 4            
+        #     data_train4, label_train4 = self.__prepare_train_data()
+        #     # data_val4, label_val4 = self.__prepare_val_data()
+        #     data_train = np.concatenate ((data_train2,data_train3,data_train4),axis=0)
+        #     label_train = np.concatenate ((label_train2,label_train3,label_train4),axis=0)
+        #     # data_val = np.concatenate ((data_val2,data_val3,data_val4),axis=0)
+        #     # label_val = np.concatenate ((label_val2,label_val3,label_val4),axis=0)
         else:
             print ("Invalid method was selected")
         write_hdf5(data_train, label_train, self.H5_PATH+"/crop_train_"+str(self.crop)+"_"+self.padding+"_"+self.method+"_x"+str(self.scale)+".h5")
         write_hdf5(data_val, label_val, self.H5_PATH+"/val_"+str(self.crop)+"_"+self.padding+"_"+self.method+"_x"+str(self.scale)+".h5")
-
         data, label, names = self.__prepare_test_data()
         write_hdf5(data, label, self.H5_PATH+"test_"+self.padding+"_"+self.method+"_x"+str(self.scale)+".h5", names)
         data, label = self.__prepare_calib_data()
@@ -449,16 +462,16 @@ class CreateDataset():
 
 if __name__ == "__main__":
     params_partial = {}
-    params_partial['scale']     = 4
-    params_partial['crop_size'] = 96
-    params_partial['stride']    = 96
-    params_partial['method']    = 'upsample'
+    params_partial['scale']     = 3
+    params_partial['crop_size'] = 32
+    params_partial['stride']    = 21
+    params_partial['method']    = 'upsample' # 'bicubic', 'bicubic_multi'
     params_partial['padding']   = 'same'
 
     DatasetObj = CreateDataset(params_partial)
     params = {}
     params['scale'] = 4
-    params['crop_size'] = 96
-    params['stride'] = 96
+    params['crop_size'] = 32
+    params['stride'] = 21
     DatasetObj.override(params)
     DatasetObj.writeDataset()

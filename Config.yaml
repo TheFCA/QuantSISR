@@ -1,5 +1,7 @@
 # This is the configuration file for training
 epochs: 100
+weight_decay: 0.001
+
 # lr : 1.0e-4 #1.0e-4
 # batch_size: 100
 
